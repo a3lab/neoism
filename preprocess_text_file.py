@@ -30,14 +30,19 @@ raw_text = raw_text.replace("\r", "\n")
 
 # Replace special/rare characters.
 raw_text = raw_text.replace("--", "-")
-raw_text = raw_text.replace("—",  "-")
+raw_text = raw_text.replace(u"—",  "-")
+raw_text = raw_text.replace(u" ",  " ") # replace non-breaking space by spaces
 raw_text = raw_text.replace("(", "-")
 raw_text = raw_text.replace(")", "-")
-raw_text = re.sub(r'\d', '', raw_text)
+
+raw_text = re.sub(r'\d', '', raw_text) # remove numbers
 
 # Remove rare characters.
 raw_text = raw_text.replace("_", "") # usually signifies italics
 raw_text = raw_text.replace("*", "")
+raw_text = raw_text.replace("/", "")
+raw_text = raw_text.replace(u"“",  "")
+raw_text = raw_text.replace(u"”",  "")
 
 # Fix multiple white spaces problems.
 raw_text = re.sub(r'\n +', '\n', raw_text)
