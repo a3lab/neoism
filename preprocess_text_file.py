@@ -10,9 +10,10 @@ parser.add_argument("output_file", type=str, help="The output file")
 args = parser.parse_args()
 
 import re
+import codecs
 
 # Load file.
-raw_text = open(args.text_file, "r").read()
+raw_text = codecs.open(args.text_file, "r", encoding='utf-8').read()
 
 # load ascii text and covert to lowercase
 raw_text = raw_text.lower()
@@ -43,7 +44,7 @@ raw_text = re.sub(r'\n +', '\n', raw_text)
 raw_text = re.sub(r' +', ' ', raw_text)
 
 # Write to output.
-output_file = open(args.output_file, "w+")
+output_file = codecs.open(args.output_file, "w+", encoding="utf-8")
 output_file.write(raw_text)
 
 # load ascii text and covert to lowercase
@@ -53,4 +54,4 @@ raw_text = raw_text.lower()
 chars = sorted(list(set(raw_text)))
 
 for c in chars:
-  print str(c) + " : " + str(raw_text.count(c))
+  print c + " : " + str(raw_text.count(c))
