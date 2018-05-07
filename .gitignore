@@ -103,3 +103,4 @@ ENV/
 *.gif
 *.mov
 *.mp4
+.DS_Store
