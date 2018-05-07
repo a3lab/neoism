@@ -52,9 +52,6 @@ raw_text = re.sub(r' +', ' ', raw_text)
 output_file = codecs.open(args.output_file, "w+", encoding="utf-8")
 output_file.write(raw_text)
 
-# load ascii text and covert to lowercase
-raw_text = raw_text.lower()
-
 # create mapping of unique chars to integers
 chars = sorted(list(set(raw_text)))
 
