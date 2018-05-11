@@ -28,6 +28,8 @@ raw_text = re.sub(r'\n\n+', '\r', raw_text)
 raw_text = raw_text.replace("\n", " ")
 raw_text = raw_text.replace("\r", "\n")
 
+raw_text = re.sub(r'\d', '', raw_text) # remove numbers
+
 # Replace special/rare characters.
 raw_text = raw_text.replace("--", "-")
 raw_text = raw_text.replace(u"—",  "-")
@@ -35,14 +37,41 @@ raw_text = raw_text.replace(u" ",  " ") # replace non-breaking space by spaces
 raw_text = raw_text.replace("(", "-")
 raw_text = raw_text.replace(")", "-")
 
-raw_text = re.sub(r'\d', '', raw_text) # remove numbers
+raw_text = raw_text.replace(u"á",  "a")
+raw_text = raw_text.replace(u"â", "a")
+raw_text = raw_text.replace(u"ç", "c")
+raw_text = raw_text.replace(u"è", "e")
+raw_text = raw_text.replace(u"é", "e")
+raw_text = raw_text.replace(u"ï", "i")
+raw_text = raw_text.replace(u"ñ", "n")
+raw_text = raw_text.replace(u"ó", "o")
+raw_text = raw_text.replace(u"ö", "o")
+raw_text = raw_text.replace(u"ü", "u")
+raw_text = raw_text.replace(u"ÿ", "y")
+raw_text = raw_text.replace("'", u"‘")
 
 # Remove rare characters.
 raw_text = raw_text.replace("_", "") # usually signifies italics
 raw_text = raw_text.replace("*", "")
 raw_text = raw_text.replace("/", "")
+raw_text = raw_text.replace("$", "")
+raw_text = raw_text.replace("&", "")
 raw_text = raw_text.replace(u"“",  "")
 raw_text = raw_text.replace(u"”",  "")
+raw_text = raw_text.replace("+", "")
+raw_text = raw_text.replace("=", "")
+raw_text = raw_text.replace(">", "")
+raw_text = raw_text.replace("[", "")
+raw_text = raw_text.replace("|", "")
+raw_text = raw_text.replace(u"ø", "")
+raw_text = raw_text.replace("-", "")
+raw_text = raw_text.replace(u"…", "")
+raw_text = raw_text.replace(u"–", "")
+raw_text = raw_text.replace(u"¢", "")
+raw_text = raw_text.replace(u" ", "")
+raw_text = raw_text.replace(u"`", "")
+raw_text = raw_text.replace(u"´", "")
+
 
 # Fix multiple white spaces problems.
 raw_text = re.sub(r'\n +', '\n', raw_text)
