@@ -12,7 +12,7 @@ parser.add_argument("-m", "--model-file", type=str, default="", help="Model file
 parser.add_argument("-i", "--initial-epoch", type=int, default=0, help="Epoch at which to start training (useful for resuming previous training)")
 parser.add_argument("-e", "--n-epochs", type=int, default=20, help="Number of epochs to train (total)")
 parser.add_argument("-em", "--embedding-length", type=int, default=0, help="Size of vector to use for first layer embedding (if 0 : don't use embedding)")
-parser.add_argument("-lr", "--learning-rate", type=float, default=0.001, help="The learning rate")
+#parser.add_argument("-lr", "--learning-rate", type=float, default=0.001, help="The learning rate")
 parser.add_argument("-D", "--model-directory", type=str, default=".", help="The directory where to save models")
 parser.add_argument("-P", "--prefix", type=str, default="lstm-weights-", help="Prefix to use for saving files")
 parser.add_argument("-b", "--batch-size", type=int, default=128, help="The batch size")
@@ -75,8 +75,8 @@ char_to_int = dict((c, i) for i, c in enumerate(chars))
 
 n_chars = len(raw_text)
 n_vocab = len(chars)
-print "Total Characters: ", n_chars
-print "Total Vocab: ", n_vocab
+print("Total Characters: ", n_chars)
+print("Total Vocab: ", n_vocab)
 
 # prepare the dataset of input to output pairs encoded as integers
 seq_length = args.sequence_length
@@ -88,12 +88,15 @@ for i in range(0, n_chars - seq_length, 1):
 	dataX.append([char_to_int[char] for char in seq_in])
 	dataY.append(char_to_int[seq_out])
 n_patterns = len(dataX)
-print "Total Patterns: ", n_patterns
+print("Total Patterns: ", n_patterns)
 
 # define the LSTM model
 model = Sequential()
 # one hot encode the output variable
 y = np_utils.to_categorical(dataY)
+
+dataX = numpy.array(dataX)
+dataY = numpy.array(dataY)
 
 if args.embedding_length <= 0:
 	# reshape X to be [samples, time steps, features] and normalize
@@ -113,14 +116,14 @@ for l in range(1, args.n_layers):
   model.add(Dropout(0.2))
 model.add(Dense(y.shape[1], activation='softmax'))
 
-print model.summary()
+print(model.summary())
 
 if (args.model_file):
-  print "Loading weights from: " + args.model_file
+  print("Loading weights from: " + args.model_file)
   model.load_weights(args.model_file)
 
 model.compile(loss='categorical_crossentropy', optimizer='adam')
-model.optimizer.lr.set_value(args.learning_rate) # Change learning rate
+#model.optimizer.lr.set_value(args.learning_rate) # Change learning rate
 
 # define the checkpoint
 if not os.path.exists(args.model_directory):
@@ -167,7 +170,7 @@ if args.initial_epoch == 0:
 	if first_epoch_progression == None:
 		model.fit(X, y, nb_epoch=1, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save])
 	else:
-		print "Special training for first epoch"
+		print("Special training for first epoch")
 		# simulate sub-epochs
 		i = 0
 		first_epoch_completed = False
@@ -176,11 +179,11 @@ if args.initial_epoch == 0:
 			n_saves           = param[0]
 			batch_size        = param[1]
 			batch_save_period = param[2]
-			print "Step #{step:02d} n_saves={n_saves} batch_size={batch} batch_save_period={period}".format(step=k, n_saves=n_saves, batch=batch_size, period=batch_save_period)
+			print("Step #{step:02d} n_saves={n_saves} batch_size={batch} batch_save_period={period}".format(step=k, n_saves=n_saves, batch=batch_size, period=batch_save_period))
 			if (n_saves == -1):
 				# complete training over remaining items
 				first_epoch_batch_model_save = ModelSave(filepath_batch, mode="batch", save_weights_only=True, period=batch_save_period)
-				first_epoch_completed = True;
+				first_epoch_completed = True
 				model.fit(X[i:], y[i:], nb_epoch=1, batch_size=batch_size, callbacks=[epoch_model_save, first_epoch_batch_model_save])
 			else:
 				for b in range(n_saves):
@@ -188,8 +191,8 @@ if args.initial_epoch == 0:
 						j = i + batch_size
 						model.train_on_batch(X[i:j], y[i:j])
 						i = j
-					filepath_batch=filepath_prefix+"bs{size:03d}-s{step:02d}b{batch:05d}.hdf5".format(size=batch_size,step=k,batch=b*batch_save_period)
-					print "Saving to " + filepath_batch
+					filepath_batch=filepath_prefix+"bs{size:03d}-s{step:02d}b{batch:05d}.hdf5".format(size=batch_size,step=k,batch=b*batch_save_period	)
+					print("Saving to " + filepath_batch)
 					model.save_weights(filepath_batch, overwrite=True)
 
 		# complete training over remaining items (unless already completed)
@@ -204,5 +207,5 @@ absolute_time = time.time()  - absolute_time
 cpu_time      = time.clock() - cpu_time
 n_epochs = args.n_epochs - args.initial_epoch
 
-print "Total time: {time:.2f} {cputime:.2f}".format(time=absolute_time, cputime=cpu_time)
-print "Per epoch:  {time:.2f} {cputime:.2f}".format(time=absolute_time/n_epochs, cputime=cpu_time/n_epochs)
+print("Total time: {time:.2f} {cputime:.2f}".format(time=absolute_time, cputime=cpu_time))
+print("Per epoch:  {time:.2f} {cputime:.2f}".format(time=absolute_time/n_epochs, cputime=cpu_time/n_epochs))

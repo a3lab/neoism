@@ -17,6 +17,7 @@ parser.add_argument("-T", "--temperature", type=float, default=1, help="Temperat
 parser.add_argument("-E", "--temperature-end", type=float, default=-1, help="Temperature end value (if <= 0 : don't change)")
 parser.add_argument("-b", "--n-best", type=int, default=0, help="Number of best choices from which to pick (to avoid too unlikely outcomes)")
 parser.add_argument("-t", "--transition-factor", type=float, default=0, help="Portion of words in each step that will smoothly transition from one model to the next (in [0, 1])")
+parser.add_argument("-p", "--seed", type=str, default=None, help="The seed used to generate the text (default will use end of training text)")
 
 args = parser.parse_args()
 
@@ -84,8 +85,8 @@ int_to_char = dict((i, c) for i, c in enumerate(chars))
 # summarize the loaded data
 n_chars = len(raw_text)
 n_vocab = len(chars)
-print "Total Characters: ", n_chars
-print "Total Vocab: ", n_vocab
+print("Total Characters: ", n_chars)
+print("Total Vocab: ", n_vocab)
 
 # prepare the dataset of input to output pairs encoded as integers
 seq_length = args.sequence_length
@@ -97,7 +98,11 @@ for i in range(0, n_chars - seq_length, 1):
 	dataX.append([char_to_int[char] for char in seq_in])
 	dataY.append(char_to_int[seq_out])
 n_patterns = len(dataX)
-print "Total Patterns: ", n_patterns
+print("Total Patterns: ", n_patterns)
+
+
+dataX = numpy.array(dataX)
+dataY = numpy.array(dataY)
 
 # one hot encode the output variable
 y = np_utils.to_categorical(dataY)
@@ -121,13 +126,17 @@ if transition_factor > 0:
 else:
   model_next = None
 
-print model.summary()
+print(model.summary())
 
 # pick end of text as seed
-pattern = dataX[-1]
+if (args.seed == None):
+	pattern = dataX[-1]
+# of use predefined seed
+else:
+	pattern = [char_to_int[char] for char in args.seed[-seq_length:]]
 
-print "Seed:"
-print "\"", ''.join([int_to_char[value] for value in pattern]), "\""
+print("Seed:")
+print("\"", ''.join([int_to_char[value] for value in pattern]), "\"")
 
 temperature = args.temperature
 
@@ -140,7 +149,7 @@ for e in range(n_epochs):
 		temperature = args.temperature + (float(e)/(n_epochs-1)) * (args.temperature_end - args.temperature)
 
 	model_file = model_files[e]
-	print "Generating epoch/step # {epoch} (temperature={temp}) using file {filename}".format(epoch=e,temp=temperature,filename=model_file)
+	print("Generating epoch/step # {epoch} (temperature={temp}) using file {filename}".format(epoch=e,temp=temperature,filename=model_file))
 	# load the network weights
 	model.load_weights(model_file)
 	model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -195,8 +204,9 @@ for e in range(n_epochs):
 		result = int_to_char[index]
 		seq_in = [int_to_char[value] for value in pattern]
 		output_file.write(result)
-		pattern.append(index)
+		pattern = numpy.append(pattern, index)
+#		pattern.append(index)
 		pattern = pattern[1:len(pattern)]
 
-	print "Done"
+	print("Done")
 	output_file.flush()
