@@ -17,9 +17,7 @@ args = parser.parse_args()
 import sys
 import numpy
 from keras.models import Sequential, Model, load_model
-from keras.layers import Dense
-from keras.layers import Dropout
-from keras.layers import LSTM
+from keras.layers import Dense, Dropout, LSTM, Embedding
 from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
 
@@ -57,17 +55,11 @@ dataY = numpy.array(dataY)
 # one hot encode the output variable
 y = np_utils.to_categorical(dataY)
 
-if args.embedding_length <= 0:
-	# reshape X to be [samples, time steps, features] and normalize
-	X = numpy.reshape(dataX, (n_patterns, seq_length, 1)) / float(n_vocab)
-else:
-	# reshape X to be [samples, time steps]
-	X = numpy.reshape(dataX, (n_patterns, seq_length))
-
 n_words = args.n_words
 
 # define the LSTM model
 model = load_model(args.model_file)
+
 # model = Sequential()
 # model.add(LSTM(args.n_hidden, input_shape=(X.shape[1], X.shape[2]), return_sequences=(args.n_layers > 1)))
 # model.add(Dropout(0.2))
@@ -77,6 +69,16 @@ model = load_model(args.model_file)
 # model.add(Dense(y.shape[1], activation='softmax'))
 
 print((model.summary()))
+
+has_embeddings = (isinstance(model.layers[0], Embedding))
+
+if has_embeddings:
+	# reshape X to be [samples, time steps]
+	X = numpy.reshape(dataX, (n_patterns, seq_length))
+else:
+	# reshape X to be [samples, time steps, features] and normalize
+	X = numpy.reshape(dataX, (n_patterns, seq_length, 1)) / float(n_vocab)
+
 
 # # load the network weights
 # model.load_weights(args.model_file)
@@ -93,10 +95,10 @@ temperature = args.temperature
 
 # generate characters
 for i in range(n_words):
-	if args.embedding_length <= 0:
-		x = numpy.reshape(pattern, (1, len(pattern), 1)) / float(n_vocab)
-	else:
+	if has_embeddings:
 		x = numpy.reshape(pattern, (1, len(pattern)))
+	else:
+		x = numpy.reshape(pattern, (1, len(pattern), 1)) / float(n_vocab)
 
 	# run prediction of model
 	prediction = model.predict(x, verbose=0).squeeze()
