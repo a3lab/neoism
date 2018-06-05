@@ -10,9 +10,10 @@ parser.add_argument("-N", "--n-words", type=int, default=1000, help="Number of w
 parser.add_argument("-T", "--temperature", type=float, default=1, help="Temperature argument [0, +inf] (for softmax sampling) (higher: more uniform, lower: more greedy")
 parser.add_argument("-b", "--n-best", type=int, default=0, help="Number of best choices from which to pick (to avoid too unlikely outcomes)")
 
-parser.add_argument("-si", "--send-ip", default="127.0.0.1", help="The ip of the OSC server")
-parser.add_argument("-rp", "--receive-port", type=int, default=5005, help="The port the OSC server is listening on")
-parser.add_argument("-sp", "--send-port", type=int, default=5006, help="The port the OSC server is writing on")
+# OSC parameters
+parser.add_argument("-I", "--send-ip", default="127.0.0.1", help="The ip of the OSC server")
+parser.add_argument("-rP", "--receive-port", type=int, default=5005, help="The port the OSC server is listening on")
+parser.add_argument("-sP", "--send-port", type=int, default=5006, help="The port the OSC server is writing on")
 
 args = parser.parse_args()
 
@@ -164,22 +165,25 @@ def generate_next(unused_addr):
 
     result = int_to_char[index]
     seq_in = [int_to_char[value] for value in pattern]
-    client.send_message("/readings/char", result)
+    client.send_message("/readings/string", result)
     pattern = numpy.append(pattern, index)
 #        pattern.append(index)
     pattern = pattern[1:len(pattern)]
 
 def set_sampling_mode(unused_addr, v):
     global sampling_mode
+    print("Sampling mode: " + str(v))
     sampling_mode = v
 
 def set_temperature(unused_addr, v):
     global temperature
+    print("Temp: " + str(v))
     temperature = v
 
 def set_n_best(unused_addr, v):
     global n_best
-    n_best = v
+    print("N. best: " + str(v))
+    n_best = int(v)
 
 dispatcher = dispatcher.Dispatcher()
 dispatcher.map("/readings/start", generate_start)
