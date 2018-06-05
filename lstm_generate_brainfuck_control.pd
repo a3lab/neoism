@@ -1,0 +1,64 @@
+#N canvas 794 49 742 792 10;
+#X obj 156 30 bng 30 250 50 0 empty empty Restart 17 7 0 10 -262144
+-1 -1;
+#X obj 250 254 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+-1 -1;
+#X floatatom 552 176 7 1e-05 100 0 - - -, f 7;
+#X floatatom 774 176 7 1 50 0 - - -, f 7;
+#X obj 250 30 tgl 30 0 empty empty Run 17 7 0 10 -262144 -1 -1 1 1
+;
+#X msg 94 665 disconnect;
+#X obj 60 710 netsend -u -b;
+#X obj 287 645 list prepend send;
+#X obj 287 672 list trim;
+#X obj 250 218 metro 100;
+#X obj 156 274 oscformat /readings/start;
+#X obj 250 314 oscformat /readings/next;
+#X obj 552 214 oscformat /readings/temperature;
+#X obj 774 212 oscformat /readings/n_best;
+#X obj 390 350 oscformat -f s /readings/sampling_mode;
+#X msg 390 266 list argmax;
+#X msg 424 292 list softmax;
+#X obj 390 30 vradio 15 0 0 2 empty empty empty 0 -8 0 10 -262144 -1
+-1 1;
+#X obj 390 238 select;
+#X text 408 29 argmax;
+#X text 408 44 softmax;
+#X msg 60 643 connect localhost 5005;
+#X obj 552 32 vsl 15 128 0.1 10 1 0 empty empty Temperature 0 -9 0
+10 -262144 -1 -1 6450 1;
+#X obj 774 32 vradio 15 0 0 8 empty empty N.\ best 0 -8 0 10 -262144
+-1 -1 5;
+#X obj 300 30 vsl 15 128 5000 50 1 0 empty empty Speed 0 -9 0 10 -262144
+-1 -1 11400 1;
+#X floatatom 300 186 5 0 0 0 - - -, f 5;
+#X obj 60 30 tgl 30 0 empty empty OSC\ Connect 17 7 0 10 -262144 -1
+-1 0 1;
+#X obj 60 604 select 1;
+#X connect 0 0 10 0;
+#X connect 1 0 11 0;
+#X connect 2 0 12 0;
+#X connect 3 0 13 0;
+#X connect 4 0 9 0;
+#X connect 5 0 6 0;
+#X connect 7 0 8 0;
+#X connect 8 0 6 0;
+#X connect 9 0 1 0;
+#X connect 10 0 7 0;
+#X connect 11 0 7 0;
+#X connect 12 0 7 0;
+#X connect 13 0 7 0;
+#X connect 14 0 7 0;
+#X connect 15 0 14 0;
+#X connect 16 0 14 0;
+#X connect 17 0 18 0;
+#X connect 18 0 15 0;
+#X connect 18 1 16 0;
+#X connect 21 0 6 0;
+#X connect 22 0 2 0;
+#X connect 23 0 3 0;
+#X connect 24 0 9 1;
+#X connect 24 0 25 0;
+#X connect 26 0 27 0;
+#X connect 27 0 21 0;
+#X connect 27 1 5 0;
