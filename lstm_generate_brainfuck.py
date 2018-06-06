@@ -66,6 +66,9 @@ model = load_model(args.model_file)
 # "ValueError: Tensor Tensor("dense_1/Softmax:0", shape=(?, 37), dtype=float32) is not an element of this graph."
 # Source of bugfix: https://github.com/keras-team/keras/issues/6462
 model._make_predict_function()
+
+saved_weights = model.layers[1].get_weights()
+
 graph = tf.get_default_graph()
 
 #model.compile(loss='categorical_crossentropy', optimizer='adam')
@@ -185,6 +188,53 @@ def set_n_best(unused_addr, v):
     print("N. best: " + str(v))
     n_best = int(v)
 
+def brain_cut(unused_addr, input, n_inputs, unit, n_units):
+    global model
+    print("Brain cut {} {} {} {}".format(input, n_inputs, unit, n_units))
+    weights = model.layers[1].get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    u_f = int(4*unit)
+    u_t = int(4*(unit+n_units))
+    weights[0][i_f:i_t,u_f:u_t] = 0
+    weights = model.layers[1].set_weights(weights)
+
+def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
+    global model
+    print("Brain copy {} {} {} {}".format(input, n_inputs, unit, n_units, from_input, from_unit))
+    weights = model.layers[1].get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    u_f = int(4*unit)
+    u_t = int(4*(unit+n_units))
+    i_f2 = int(from_input)
+    i_t2 = int(from_input+n_inputs)
+    u_f2 = int(4*from_unit)
+    u_t2 = int(4*(from_unit+n_units))
+    weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f2:i_t2,u_f2:u_t2]
+    weights = model.layers[1].set_weights(weights)
+
+def brain_restore(unused_addr, input, n_inputs, unit, n_units):
+    global model, saved_weights
+    print("Brain cut {} {} {} {}".format(input, n_inputs, unit, n_units))
+    weights = model.layers[1].get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    u_f = int(4*unit)
+    u_t = int(4*(unit+n_units))
+    weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f:i_t,u_f:u_t]
+    weights = model.layers[1].set_weights(weights)
+
+# def brain_cut_unit(unused_addr, unit, n_units):
+#     global model
+#     print("Brain cut unit {}".format(unit))
+#     weights = model.layers[1].get_weights()
+#     i = int(unit)*4
+#     w = weights[0]
+#     w[:,i:i+n_units*4] = 0
+#     weights[0] = w
+#     weights = model.layers[1].set_weights(weights)
+
 dispatcher = dispatcher.Dispatcher()
 dispatcher.map("/readings/start", generate_start)
 dispatcher.map("/readings/next", generate_next)
@@ -192,6 +242,11 @@ dispatcher.map("/readings/next", generate_next)
 dispatcher.map("/readings/sampling_mode", set_sampling_mode)
 dispatcher.map("/readings/temperature", set_temperature)
 dispatcher.map("/readings/n_best", set_n_best)
+dispatcher.map("/readings/brain_cut", brain_cut)
+dispatcher.map("/readings/brain_copy", brain_copy)
+dispatcher.map("/readings/brain_restore", brain_restore)
+# dispatcher.map("/readings/brain_cut/input", brain_cut_input)
+# dispatcher.map("/readings/brain_cut/unit", brain_cut_unit)
 
 server = osc_server.ThreadingOSCUDPServer( ("127.0.0.1", args.receive_port), dispatcher)
 print("Serving on {}".format(server.server_address))
