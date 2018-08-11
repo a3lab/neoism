@@ -57,6 +57,19 @@ raw_text = re.sub(r' +', ' ', raw_text)
 import string
 printable = set(string.printable)
 raw_text = ''.join(filter(lambda x: x in printable, raw_text))
+# remove very rare chars
+raw_text = raw_text.replace("%", "")
+raw_text = raw_text.replace("$", "")
+raw_text = raw_text.replace("+", "")
+raw_text = raw_text.replace("<", "")
+raw_text = raw_text.replace(">", "")
+raw_text = raw_text.replace("=", "")
+raw_text = raw_text.replace("|", "")
+raw_text = raw_text.replace("[", "(")
+raw_text = raw_text.replace("]", ")")
+raw_text = raw_text.replace("{", "(")
+raw_text = raw_text.replace("}", ")")
+
 # Write to output.
 output_file = codecs.open(args.output_file, "w+", encoding="utf-8")
 output_file.write(raw_text)
