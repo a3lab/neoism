@@ -17,20 +17,30 @@ import sys
 # Load file.
 raw_text = codecs.open(args.text_file, "r", encoding='utf-8').read()
 
+import unicodedata
+
+
+def remove_accents(input_str):
+    nfkd_form = unicodedata.normalize('NFKD', input_str)
+    return u"".join([c for c in nfkd_form if not unicodedata.combining(c)])
+
+raw_text = remove_accents(raw_text)
+raw_text = raw_text.replace("ø", "o") #special case
+
+# replace accents
+#raw_text = unidecode.unidecode(raw_text)
+
 # load ascii text and covert to lowercase
 raw_text = raw_text.lower()
 
-# replace accents
-raw_text = unidecode.unidecode(raw_text)
-
 # Replace * * * * * style separators.
-raw_text = raw_text.replace("*", "")
+#raw_text = raw_text.replace("*", "")
 
 # Replace line breaks with spaces and 2+line breaks with newlines.
 raw_text = re.sub(r'\r\n', '\n', raw_text)
 raw_text = re.sub(r' *\n', '\n', raw_text)
 raw_text = re.sub(r'\n\n+', '\r', raw_text)
-raw_text = raw_text.replace("\n", " ")
+#raw_text = raw_text.replace("\n", " ")
 raw_text = raw_text.replace("\r", "\n")
 
 # Replace special/rare characters.
@@ -40,33 +50,31 @@ raw_text = raw_text.replace(u" ",  " ") # replace non-breaking space by spaces
 raw_text = raw_text.replace("(", "-")
 raw_text = raw_text.replace(")", "-")
 
-raw_text = re.sub(r'\d', '', raw_text) # remove numbers
-
-# Remove rare characters.
-raw_text = raw_text.replace("_", "") # usually signifies italics
-raw_text = raw_text.replace("*", "")
-raw_text = raw_text.replace("/", "")
-raw_text = raw_text.replace(u"“",  "")
-raw_text = raw_text.replace(u"”",  "")
+# Remove numbers
+#raw_text = re.sub(r'\d', '', raw_text)
 
 # Fix multiple white spaces problems.
 raw_text = re.sub(r'\n +', '\n', raw_text)
 raw_text = re.sub(r' +', ' ', raw_text)
 
 # remove non-printable characters
-import string
-printable = set(string.printable)
-raw_text = ''.join(filter(lambda x: x in printable, raw_text))
+#import string
+#printable = set(string.printable)
+#raw_text = ''.join(filter(lambda x: x in printable, raw_text))
+
+# strange character
+raw_text = raw_text.replace(u"\x0c",  "\n")
 
 # remove newlines
-raw_text = raw_text.replace("\n", " ")
-raw_text = raw_text.replace("\r", " ")
-raw_text = raw_text.replace("\r\n", " ")
-raw_text = raw_text.replace(u"\x0c",  "")
+#raw_text = raw_text.replace("\n", " ")
+#raw_text = raw_text.replace("\r", " ")
+#raw_text = raw_text.replace("\r\n", " ")
 
 # remove very rare chars
 raw_text = raw_text.replace("%", "")
 raw_text = raw_text.replace("$", "")
+raw_text = raw_text.replace("¢", "")
+raw_text = raw_text.replace("©", "")
 raw_text = raw_text.replace("+", "")
 raw_text = raw_text.replace("<", "")
 raw_text = raw_text.replace(">", "")
@@ -76,6 +84,25 @@ raw_text = raw_text.replace("[", "(")
 raw_text = raw_text.replace("]", ")")
 raw_text = raw_text.replace("{", "(")
 raw_text = raw_text.replace("}", ")")
+raw_text = raw_text.replace("_", "") # usually signifies italics
+raw_text = raw_text.replace("*", "")
+raw_text = raw_text.replace("/", "")
+raw_text = raw_text.replace("–", "")
+#raw_text = raw_text.replace(u"“",  "")
+#raw_text = raw_text.replace(u"”",  "")
+#raw_text = raw_text.replace("C", "")
+
+
+
+# remove gibberish characters
+raw_text = raw_text.replace(u"\x01",  "")
+raw_text = raw_text.replace(u"\x04",  "")
+raw_text = raw_text.replace(u"\x06",  "")
+raw_text = raw_text.replace(u"\x08",  "")
+raw_text = raw_text.replace(u"\x0f",  "")
+raw_text = raw_text.replace(u"\x10",  "")
+raw_text = raw_text.replace(u"\u2028",  "\n")
+
 
 # Write to output.
 output_file = codecs.open(args.output_file, "w+", encoding="utf-8")
@@ -85,4 +112,4 @@ output_file.write(raw_text)
 chars = sorted(list(set(raw_text)))
 
 for c in chars:
-  print(c + " : " + str(raw_text.count(c)))
+  print(repr(c), " : ", str(raw_text.count(c)))
