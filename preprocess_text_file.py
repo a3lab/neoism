@@ -57,6 +57,13 @@ raw_text = re.sub(r' +', ' ', raw_text)
 import string
 printable = set(string.printable)
 raw_text = ''.join(filter(lambda x: x in printable, raw_text))
+
+# remove newlines
+raw_text = raw_text.replace("\n", " ")
+raw_text = raw_text.replace("\r", " ")
+raw_text = raw_text.replace("\r\n", " ")
+raw_text = raw_text.replace(u"\x0c",  "")
+
 # remove very rare chars
 raw_text = raw_text.replace("%", "")
 raw_text = raw_text.replace("$", "")
