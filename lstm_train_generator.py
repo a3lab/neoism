@@ -175,7 +175,7 @@ cpu_time = time.clock()
 # train first epoch separately
 if args.initial_epoch == 0:
 	if first_epoch_progression == None:
-		model.fit(X, y, nb_epoch=1, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save])
+		model.fit(X, y, epochs=1, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save])
 	else:
 		print("Special training for first epoch")
 		# simulate sub-epochs
@@ -191,7 +191,7 @@ if args.initial_epoch == 0:
 				# complete training over remaining items
 				first_epoch_batch_model_save = ModelSave(filepath_batch, mode="batch", save_weights_only=True, period=batch_save_period)
 				first_epoch_completed = True
-				model.fit(X[i:], y[i:], nb_epoch=1, batch_size=batch_size, callbacks=[epoch_model_save, first_epoch_batch_model_save])
+				model.fit(X[i:], y[i:], epochs=1, batch_size=batch_size, callbacks=[epoch_model_save, first_epoch_batch_model_save])
 			else:
 				for b in range(n_saves):
 					for p in range(batch_save_period):
@@ -204,11 +204,11 @@ if args.initial_epoch == 0:
 
 		# complete training over remaining items (unless already completed)
 		if not first_epoch_completed:
-			model.fit(X[i:], y[i:], nb_epoch=1, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save])
+			model.fit(X[i:], y[i:], epochs=1, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save])
 	n_epochs_remaining -= 1
 
 # train other epochs
-model.fit(X, y, nb_epoch=n_epochs_remaining, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save], initial_epoch=args.initial_epoch)
+model.fit(X, y, epochs=n_epochs_remaining, batch_size=args.batch_size, callbacks=[epoch_model_save, batch_model_save], initial_epoch=args.initial_epoch)
 
 absolute_time = time.time()  - absolute_time
 cpu_time      = time.clock() - cpu_time
