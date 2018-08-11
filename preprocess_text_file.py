@@ -56,4 +56,4 @@ output_file.write(raw_text)
 chars = sorted(list(set(raw_text)))
 
 for c in chars:
-  print c + " : " + str(raw_text.count(c))
+  print(c + " : " + str(raw_text.count(c)))
