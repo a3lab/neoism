@@ -12,6 +12,7 @@ args = parser.parse_args()
 import re
 import codecs
 import unidecode
+import sys
 
 # Load file.
 raw_text = codecs.open(args.text_file, "r", encoding='utf-8').read()
@@ -52,6 +53,10 @@ raw_text = raw_text.replace(u"”",  "")
 raw_text = re.sub(r'\n +', '\n', raw_text)
 raw_text = re.sub(r' +', ' ', raw_text)
 
+# remove non-printable characters
+import string
+printable = set(string.printable)
+raw_text = ''.join(filter(lambda x: x in printable, raw_text))
 # Write to output.
 output_file = codecs.open(args.output_file, "w+", encoding="utf-8")
 output_file.write(raw_text)
