@@ -11,12 +11,16 @@ args = parser.parse_args()
 
 import re
 import codecs
+import unidecode
 
 # Load file.
 raw_text = codecs.open(args.text_file, "r", encoding='utf-8').read()
 
 # load ascii text and covert to lowercase
 raw_text = raw_text.lower()
+
+# replace accents
+raw_text = unidecode.unidecode(raw_text)
 
 # Replace * * * * * style separators.
 raw_text = raw_text.replace("*", "")
