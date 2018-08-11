@@ -17,13 +17,16 @@ parser.add_argument("-D", "--model-directory", type=str, default=".", help="The 
 parser.add_argument("-P", "--prefix", type=str, default="lstm-weights-", help="Prefix to use for saving files")
 parser.add_argument("-b", "--batch-size", type=int, default=128, help="The batch size")
 parser.add_argument("-p", "--batch-save-period", type=int, default=0, help="Period at which to save weights (ie. after every X batch, 0 = no batch save)")
-
 parser.add_argument("-fp", "--first-epoch-params", type=str, default=None, help="A formatted string describing the evolution of batch size and save period during the first epoch")
+
+parser.add_argument("-w", "--use-words", action='store_true', default=False, help="Train at word-level instead of character-level")
 
 args = parser.parse_args()
 
 import numpy
 import os
+import time
+
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import Dropout
@@ -31,8 +34,7 @@ from keras.layers import LSTM
 from keras.layers import Embedding
 from keras.callbacks import Callback
 from keras.utils import np_utils
-
-import time
+import nltk
 
 class ModelSave(Callback):
 	def __init__(self, filepath, mode="epoch", save_weights_only=False, period=1):
@@ -65,9 +67,14 @@ class ModelSave(Callback):
 		if (self.process_epoch):
 			self.on_step_end(self.filepath.format(epoch=epoch, **logs), epoch, logs)
 
+use_words = args.use_words
+
 # load ascii text and covert to lowercase
 raw_text = open(args.text_file).read()
 raw_text = raw_text.lower()
+
+if use_words:
+	raw_text = nltk.word_tokenize(raw_text)
 
 # create mapping of unique chars to integers
 chars = sorted(list(set(raw_text)))
@@ -75,7 +82,7 @@ char_to_int = dict((c, i) for i, c in enumerate(chars))
 
 n_chars = len(raw_text)
 n_vocab = len(chars)
-print("Total Characters: ", n_chars)
+print("Total ", ("Words" if use_words else "Characters"), ": ", n_chars)
 print("Total Vocab: ", n_vocab)
 
 # prepare the dataset of input to output pairs encoded as integers
