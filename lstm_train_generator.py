@@ -5,8 +5,10 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("text_file", type=str, help="The file containing the original text")
-parser.add_argument("-n", "--n-hidden", type=int, default=256, help="Number of hidden units per layer")
-parser.add_argument("-l", "--n-layers", type=int, default=1, help="Number of layers")
+#parser.add_argument("-n", "--n-hidden", type=int, default=256, help="Number of hidden units per layer")
+parser.add_argument("-n", "--n-hidden", type=str, default="256", help="Number of hidden units per layer, as a comma-separated list")
+parser.add_argument("-d", "--dropout", type=str, default="0.2", help="Dropout per layer, as a comma-separated list")
+#parser.add_argument("-l", "--n-layers", type=int, default=1, help="Number of layers")
 parser.add_argument("-s", "--sequence-length", type=int, default=100, help="Sequence length")
 parser.add_argument("-m", "--model-file", type=str, default="", help="Model file to load (in order to restart from a certain point)")
 parser.add_argument("-i", "--initial-epoch", type=int, default=0, help="Epoch at which to start training (useful for resuming previous training)")
@@ -108,22 +110,28 @@ y = np_utils.to_categorical(dataY)
 dataX = numpy.array(dataX)
 dataY = numpy.array(dataY)
 
+n_hidden = args.n_hidden.split(',')
+dropout = args.dropout.split(',')
+n_layers = len(n_hidden)
+if (n_layers != len(dropout)):
+	sys.exit("Length of --n-hidden and --dropout do not match.")
+
 if args.embedding_length <= 0:
 	# reshape X to be [samples, time steps, features] and normalize
 	X = numpy.reshape(dataX, (n_patterns, seq_length, 1)) / float(n_vocab)
 	# add first LSTM layer
-	model.add(LSTM(args.n_hidden, input_shape=(X.shape[1], X.shape[2]), return_sequences=(args.n_layers > 1)))
+	model.add(LSTM(int(n_hidden[0]), input_shape=(X.shape[1], X.shape[2]), return_sequences=(n_layers > 1)))
 else:
 	# reshape X to be [samples, time steps]
 	X = numpy.reshape(dataX, (n_patterns, seq_length))
 	# add embedded layer + LSTM layer
 	model.add(Embedding(n_vocab, args.embedding_length, input_length=seq_length))
-	model.add(LSTM(args.n_hidden, return_sequences=(args.n_layers > 1)))
+	model.add(LSTM(int(n_hidden[0]), return_sequences=(n_layers > 1)))
 
-model.add(Dropout(0.2))
-for l in range(1, args.n_layers):
-  model.add(LSTM(args.n_hidden, return_sequences=(l < args.n_layers-1)))
-  model.add(Dropout(0.2))
+model.add(Dropout(float(dropout[0])))
+for l in range(1, n_layers):
+  model.add(LSTM(int(n_hidden[l]), return_sequences=(l < n_layers-1)))
+  model.add(Dropout(float(dropout[l])))
 model.add(Dense(y.shape[1], activation='softmax'))
 
 print(model.summary())
@@ -139,7 +147,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam')
 if not os.path.exists(args.model_directory):
 	os.makedirs(args.model_directory)
 
-filepath_prefix="{dir}/{prefix}-layers{n_layers}-nhu{n_hidden}-".format(dir=args.model_directory,prefix=args.prefix,n_hidden=args.n_hidden, n_layers=args.n_layers)
+filepath_prefix="{dir}/{prefix}-layers{n_layers}-nhu{n_hidden}-".format(dir=args.model_directory,prefix=args.prefix,n_hidden=args.n_hidden, n_layers=n_layers)
 filepath_epoch=filepath_prefix+"e{epoch:03d}.hdf5"
 filepath_batch=filepath_prefix+"b{batch:05d}.hdf5"
 
