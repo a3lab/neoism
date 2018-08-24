@@ -26,6 +26,8 @@ args = parser.parse_args()
 import numpy
 import os
 import time
+import io
+import sys
 
 from keras.models import Sequential
 from keras.layers import Dense
@@ -69,8 +71,9 @@ class ModelSave(Callback):
 
 use_words = args.use_words
 
-# load ascii text and covert to lowercase
-raw_text = open(args.text_file).read()
+# load text and covert to lowercase
+with io.open(args.text_file, "r", encoding="utf-8") as f:
+	raw_text = f.read()
 raw_text = raw_text.lower()
 
 if use_words:
