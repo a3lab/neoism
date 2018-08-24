@@ -36,7 +36,6 @@ from keras.layers import LSTM
 from keras.layers import Embedding
 from keras.callbacks import Callback
 from keras.utils import np_utils
-import nltk
 
 class ModelSave(Callback):
 	def __init__(self, filepath, mode="epoch", save_weights_only=False, period=1):
@@ -77,6 +76,7 @@ with io.open(args.text_file, "r", encoding="utf-8") as f:
 raw_text = raw_text.lower()
 
 if use_words:
+	import nltk
 	raw_text = nltk.word_tokenize(raw_text)
 
 # create mapping of unique chars to integers
