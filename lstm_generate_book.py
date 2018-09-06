@@ -5,7 +5,6 @@ parser = argparse.ArgumentParser()
 parser.add_argument("text_file", type=str, help="The file containing the original text")
 parser.add_argument("model_file_list", type=str, help="A file containing all the model files to use OR a prefix to use for files")
 parser.add_argument("output_file", type=str, help="The output file")
-parser.add_argument("-em", "--embedding-length", type=int, default=0, help="Size of vector to use for first layer embedding (if 0 : don't use embedding)")
 parser.add_argument("-s", "--sequence-length", type=int, default=100, help="Sequence length")
 parser.add_argument("-e", "--n-epochs", type=int, default=None, help="Number of epochs")
 parser.add_argument("-D", "--model-directory", type=str, default=".", help="The directory where models were saved")
@@ -16,6 +15,8 @@ parser.add_argument("-E", "--temperature-end", type=float, default=-1, help="Tem
 parser.add_argument("-b", "--n-best", type=int, default=0, help="Number of best choices from which to pick (to avoid too unlikely outcomes)")
 parser.add_argument("-t", "--transition-factor", type=float, default=0, help="Portion of words in each step that will smoothly transition from one model to the next (in [0, 1])")
 parser.add_argument("-p", "--seed", type=str, default=None, help="The seed used to generate the text (default will use end of training text)")
+
+parser.add_argument("-ne", "--no-embeddings", action='store_true', default=False, help="Use no embeddings")
 
 args = parser.parse_args()
 
@@ -78,7 +79,7 @@ dataY = numpy.array(dataY)
 # one hot encode the output variable
 y = np_utils.to_categorical(dataY)
 
-if args.embedding_length <= 0:
+if args.no_embeddings:
 	# reshape X to be [samples, time steps, features] and normalize
 	X = numpy.reshape(dataX, (n_patterns, seq_length, 1)) / float(n_vocab)
 else:
@@ -132,7 +133,7 @@ for e in range(n_epochs):
 
 	# generate characters
 	for i in range(n_words):
-		if args.embedding_length <= 0:
+		if args.no_embeddings:
 			x = numpy.reshape(pattern, (1, len(pattern), 1)) / float(n_vocab)
 		else:
 			x = numpy.reshape(pattern, (1, len(pattern)))
