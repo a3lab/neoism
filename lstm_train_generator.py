@@ -22,6 +22,7 @@ parser.add_argument("-p", "--batch-save-period", type=int, default=0, help="Peri
 parser.add_argument("-fp", "--first-epoch-params", type=str, default=None, help="A formatted string describing the evolution of batch size and save period during the first epoch")
 
 parser.add_argument("-w", "--use-words", action='store_true', default=False, help="Train at word-level instead of character-level")
+parser.add_argument("-sw", "--save-weights-only", action='store_true', default=False, help="If activated the models will only save the weights")
 
 args = parser.parse_args()
 
@@ -154,8 +155,8 @@ filepath_batch=filepath_prefix+"b{batch:05d}.hdf5"
 if (args.initial_epoch == 0):
   model.save_weights(filepath_epoch.format(epoch=-1)) # save startup weights
 
-epoch_model_save = ModelSave(filepath_epoch, mode="epoch", save_weights_only=True)
-batch_model_save = ModelSave(filepath_batch, mode="batch", save_weights_only=True, period=args.batch_save_period)
+epoch_model_save = ModelSave(filepath_epoch, mode="epoch", save_weights_only=args.save_weights_only)
+batch_model_save = ModelSave(filepath_batch, mode="batch", save_weights_only=args.save_weights_only, period=args.batch_save_period)
 
 # build first epoch model save
 # eg. "10:1:1,20:4:2,100:32:10,-1:128:100"
