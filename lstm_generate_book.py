@@ -5,11 +5,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("text_file", type=str, help="The file containing the original text")
 parser.add_argument("model_file_list", type=str, help="A file containing all the model files to use OR a prefix to use for files")
 parser.add_argument("output_file", type=str, help="The output file")
-parser.add_argument("-n", "--n-hidden", type=int, default=256, help="Number of hidden units per layer")
-parser.add_argument("-l", "--n-layers", type=int, default=1, help="Number of layers")
+parser.add_argument("-em", "--embedding-length", type=int, default=0, help="Size of vector to use for first layer embedding (if 0 : don't use embedding)")
 parser.add_argument("-s", "--sequence-length", type=int, default=100, help="Sequence length")
 parser.add_argument("-e", "--n-epochs", type=int, default=None, help="Number of epochs")
-parser.add_argument("-em", "--embedding-length", type=int, default=0, help="Size of vector to use for first layer embedding (if 0 : don't use embedding)")
 parser.add_argument("-D", "--model-directory", type=str, default=".", help="The directory where models were saved")
 parser.add_argument("-S", "--sampling_mode", type=str, default="argmax", choices=["argmax", "softmax"], help="Sampling policy")
 parser.add_argument("-N", "--n-words", type=int, default=1000, help="Number of words to generate per epoch/chapter")
@@ -24,40 +22,13 @@ args = parser.parse_args()
 import sys
 import numpy
 import os.path
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.layers import Dense
 from keras.layers import Dropout
 from keras.layers import Embedding
 from keras.layers import LSTM
 from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
-
-
-def create_model():
-	global args, X, n_vocab, seq_length
-
-	# define the LSTM model
-	model = Sequential()
-
-	if args.embedding_length <= 0:
-		# add first LSTM layer
-		model.add(LSTM(args.n_hidden, input_shape=(X.shape[1], X.shape[2]), return_sequences=(args.n_layers > 1)))
-	else:
-		# add embedded layer + LSTM layer
-		model.add(Embedding(n_vocab, args.embedding_length, input_length=seq_length))
-		model.add(LSTM(args.n_hidden, return_sequences=(args.n_layers > 1)))
-
-	model.add(Dropout(0.2))
-	for l in range(1, args.n_layers):
-	  model.add(LSTM(args.n_hidden, return_sequences=(l < args.n_layers-1)))
-	  model.add(Dropout(0.2))
-	model.add(Dense(y.shape[1], activation='softmax'))
-	return model
-
-def load_model(model, model_file):
-	# load the network weights
-	model.load_weights(model_file)
-	model.compile(loss='categorical_crossentropy', optimizer='adam')
 
 # load ascii text and covert to lowercase
 raw_text = open(args.text_file).read()
@@ -120,9 +91,9 @@ transition_n_words = int(n_words * transition_factor)
 transition_start_word = n_words - transition_n_words
 
 # Create model
-model = create_model()
+model = load_model(model_files[0])
 if transition_factor > 0:
-  model_next = create_model()
+  model_next = load_model(model_files[0]) # dummy
 else:
   model_next = None
 
