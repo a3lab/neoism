@@ -67,7 +67,7 @@ model = load_model(args.model_file)
 # Source of bugfix: https://github.com/keras-team/keras/issues/6462
 model._make_predict_function()
 
-saved_weights = model.layers[1].get_weights()
+saved_weights = model.get_weights()
 
 graph = tf.get_default_graph()
 
@@ -168,7 +168,7 @@ def generate_next(unused_addr):
 
     result = int_to_char[index]
     seq_in = [int_to_char[value] for value in pattern]
-    client.send_message("/readings/string", result)
+    client.send_message("/neoism/text", result)
     pattern = numpy.append(pattern, index)
 #        pattern.append(index)
     pattern = pattern[1:len(pattern)]
@@ -188,42 +188,61 @@ def set_n_best(unused_addr, v):
     print("N. best: " + str(v))
     n_best = int(v)
 
-def brain_cut(unused_addr, input, n_inputs, unit, n_units):
+def brain_cut(unused_addr, group, input, n_inputs, unit, n_units):
     global model
-    print("Brain cut {} {} {} {}".format(input, n_inputs, unit, n_units))
-    weights = model.layers[1].get_weights()
+    print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
+    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
-    u_f = int(4*unit)
-    u_t = int(4*(unit+n_units))
-    weights[0][i_f:i_t,u_f:u_t] = 0
-    weights = model.layers[1].set_weights(weights)
+    u_f = int(unit)
+    u_t = int(unit+n_units)
+    weights[group][i_f:i_t,u_f:u_t] = 0
+#    weights[group+1][u_f:u_t] = 0
+    model.set_weights(weights)
 
-def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
+def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
     global model
-    print("Brain copy {} {} {} {}".format(input, n_inputs, unit, n_units, from_input, from_unit))
-    weights = model.layers[1].get_weights()
+    print("Brain noise {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, noise))
+    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
-    u_f = int(4*unit)
-    u_t = int(4*(unit+n_units))
-    i_f2 = int(from_input)
-    i_t2 = int(from_input+n_inputs)
-    u_f2 = int(4*from_unit)
-    u_t2 = int(4*(from_unit+n_units))
-    weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f2:i_t2,u_f2:u_t2]
-    weights = model.layers[1].set_weights(weights)
+    u_f = int(unit)
+    u_t = int(unit+n_units)
+    print("{} {} {} {}".format(i_f, i_t, u_f, u_t))
+    print(weights[group].shape)
+    print(weights[group][i_f:i_t,u_f:u_t].shape)
+    print(saved_weights[group][i_f:i_t,u_f:u_t].shape)
+    print( numpy.random.normal(0, noise, size=(n_inputs, n_units)).shape)
+    weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t] + numpy.random.normal(0, noise, size=(n_inputs, n_units))
+#    weights[group+1][u_f:u_t] = 0
+    model.set_weights(weights)
 
-def brain_restore(unused_addr, input, n_inputs, unit, n_units):
+# def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
+#     global model
+#     print("Brain copy {} {} {} {}".format(input, n_inputs, unit, n_units, from_input, from_unit))
+#     weights = model.layers[1].get_weights()
+#     i_f = int(input)
+#     i_t = int(input+n_inputs)
+#     u_f = int(4*unit)
+#     u_t = int(4*(unit+n_units))
+#     i_f2 = int(from_input)
+#     i_t2 = int(from_input+n_inputs)
+#     u_f2 = int(4*from_unit)
+#     u_t2 = int(4*(from_unit+n_units))
+#     weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f2:i_t2,u_f2:u_t2]
+#     weights = model.layers[1].set_weights(weights)
+#
+def brain_restore(unused_addr, group, input, n_inputs, unit, n_units):
     global model, saved_weights
-    print("Brain cut {} {} {} {}".format(input, n_inputs, unit, n_units))
-    weights = model.layers[1].get_weights()
+    print("Brain restore {} {} {} {}".format(input, n_inputs, unit, n_units))
+    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
-    u_f = int(4*unit)
-    u_t = int(4*(unit+n_units))
-    weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f:i_t,u_f:u_t]
-    weights = model.layers[1].set_weights(weights)
+    u_f = int(unit)
+    u_t = int(unit+n_units)
+    weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t]
+#    weights[group+1][u_f:u_t] = saved_weights[group+1][u_f:u_t]
+    model.set_weights(weights)
 
 # def brain_cut_unit(unused_addr, unit, n_units):
 #     global model
@@ -236,17 +255,18 @@ def brain_restore(unused_addr, input, n_inputs, unit, n_units):
 #     weights = model.layers[1].set_weights(weights)
 
 dispatcher = dispatcher.Dispatcher()
-dispatcher.map("/readings/start", generate_start)
-dispatcher.map("/readings/next", generate_next)
-#dispatcher.map("/readings/stop", generate_stop, "Stop (and quit)")
-dispatcher.map("/readings/sampling_mode", set_sampling_mode)
-dispatcher.map("/readings/temperature", set_temperature)
-dispatcher.map("/readings/n_best", set_n_best)
-dispatcher.map("/readings/brain_cut", brain_cut)
-dispatcher.map("/readings/brain_copy", brain_copy)
-dispatcher.map("/readings/brain_restore", brain_restore)
-# dispatcher.map("/readings/brain_cut/input", brain_cut_input)
-# dispatcher.map("/readings/brain_cut/unit", brain_cut_unit)
+dispatcher.map("/neoism/start", generate_start)
+dispatcher.map("/neoism/next", generate_next)
+#dispatcher.map("/neoism/stop", generate_stop, "Stop (and quit)")
+dispatcher.map("/neoism/sampling_mode", set_sampling_mode)
+dispatcher.map("/neoism/temperature", set_temperature)
+dispatcher.map("/neoism/n_best", set_n_best)
+dispatcher.map("/neoism/brain_cut", brain_cut)
+dispatcher.map("/neoism/brain_noise", brain_noise)
+#dispatcher.map("/neoism/brain_copy", brain_copy)
+dispatcher.map("/neoism/brain_restore", brain_restore)
+# dispatcher.map("/neoism/brain_cut/input", brain_cut_input)
+# dispatcher.map("/neoism/brain_cut/unit", brain_cut_unit)
 
 server = osc_server.ThreadingOSCUDPServer( ("127.0.0.1", args.receive_port), dispatcher)
 print("Serving on {}".format(server.server_address))
