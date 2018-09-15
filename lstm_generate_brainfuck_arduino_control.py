@@ -24,11 +24,11 @@ temperature = 0.1
 new_temperature = temperature
 
 # Initialize.
-#client.send_message("/readings/start")
+#client.send_message("/neoism/start")
 
-client.send_message("/readings/sampling_mode", "softmax")
-client.send_message("/readings/n_best", 0)
-client.send_message("/readings/temperature", new_temperature)
+client.send_message("/neoism/sampling_mode", "softmax")
+client.send_message("/neoism/n_best", 0)
+client.send_message("/neoism/temperature", new_temperature)
 
 class State:
 
@@ -52,6 +52,9 @@ class State:
     def __init__(self):
         # Create array of arrays.
         self.connections = [ [ False for j in range(self.N_PINS) ] for i in range(self.N_PINS) ]
+
+    def copy_from(self, other):
+        self.connections = other.connections
 
     def reset(self):
         for i in range(self.N_PINS):
@@ -90,8 +93,11 @@ class State:
 
     def get_info(self, portname):
         info = {
-            level: int(portname[0]),
-            input: portname[2] == "!"
+            "name": portname,
+            "code" : portname[0:2],
+            "level": int(portname[0]),
+            "position": portname[1],
+            "input": portname[2] == "!"
         }
         return info
 
@@ -101,32 +107,72 @@ class State:
             if c:
                 print("{} => {}".format(p, c))
 
+def process_state():
+    n_embeddings = 5
+    n_characters = 56
+    n_hidden_layer_1 = 64
+    n_hidden_layer_2 = 1024
+
+    speed_adjust = 0
+    temperature_adjust = 0
+
+    # Output layer.
+    noise_level = 0.2
+    from_i = 0
+    block_size = int(n_hidden_layer_2 / 3)
+    for port in [ "31!", "32!", "33!" ]:
+        connections = state.get_connections(port)
+        port_info = state.get_info(port)
+        if not connections:
+            client.send_message("/neoism/brain_cut", [ 7, from_i, block_size, 0, n_characters])
+        else:
+            info = state.get_info(connections[0])
+            if info["code"] == port_info["code"]: # correct port
+                client.send_message("/neoism/brain_restore", [ 7, from_i, block_size, 0, n_characters])
+            else:
+                client.send_message("/neoism/brain_noise", [ 7, from_i, block_size, 0, n_characters, noise_level])
+                speed_adjust += port_info["level"] - info["level"]
+        from_i += block_size
+
+    # Todo: check all inputs connected into inputs => increase temperature
+
+
 state = State()
+new_state = State()
 
 import random
+import copy
 while True:
     # Receive ASCIIMassage from Arduino
     line = ard.readline().rstrip().split()
-    command = line[0]
+    if line:
+        command = line[0]
 
-    if command == b'/reset':
-        print("Reset state")
-        state.reset();
+        if command == b'/reset':
+            print("Reset state")
+            new_state.reset()
 
-    elif command == b'/conn':
-        from_pin = int(line[1])
-        to_pin   = int(line[2])
-        print("Connection: {} {}".format(from_pin, to_pin))
-        state.connect(from_pin, to_pin)
+        elif command == b'/conn':
+            from_pin = int(line[1])
+            to_pin   = int(line[2])
+            print("Connection: {} {}".format(from_pin, to_pin))
+            new_state.connect(from_pin, to_pin)
 
-    elif command == b'/done':
-        print("=====")
-        state.debug()
-        print("Done")
+        elif command == b'/done':
+            print("=====")
+            process_state()
+            state.debug()
+            state.copy_from(new_state)
+            print("Done")
+
+    #client.send_message("/neoism/temperature")
 
     #     if temperature != new_temperature:
-    #         client.send_message("/readings/temperature", new_temperature)
+    #         client.send_message("/neoism/temperature", new_temperature)
     #         temperature = new_temperature
+
+    # Apply state.
+
 
 #    time.sleep(1)
 
