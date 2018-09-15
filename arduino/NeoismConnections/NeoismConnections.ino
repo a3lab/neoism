@@ -101,11 +101,24 @@ void loop() {
   outbound.streamPacket(&Serial);
   
   // Go through all pins : check and print connection state.
+  connections_t connections[N_PINS];
+  for (int i=0; i<N_PINS; i++)
+    connections[i] = getConnections(i);
+    
+  // Verify: if someone "tricks" the system by connecting the wire to GND we can fix by comparing to inverse connection.
+  for (int i=0; i<N_PINS; i++)
+    for (int j=0; j<N_PINS; j++)
+      if (i != j && bitRead64(connections[i], j) != bitRead64(connections[j], i)) {
+        bitClear64(connections[i], j);
+        bitClear64(connections[j], i);
+      }
+    
+  // Send state.
   for (int i=0; i<N_PINS; i++) {
-    connections_t connections = getConnections(i);
-    if (connections != DISCONNECTED) {
+    connections_t c = connections[i];
+    if (c != DISCONNECTED) {
       for (int j=0; j<N_PINS; j++) {
-        bool val = bitRead64(connections, j);
+        bool val = bitRead64(c, j);
         if (val) {
           outbound.beginPacket("/conn");
           outbound.addInt(i);
