@@ -76,7 +76,7 @@ void printConnections(connections_t connections, bool verbose=false) {
       Serial.print(val ? "X" : "O"); Serial.print(" ");
     } else {
       if (val)
-        Serial.print(PINS[j]); Serial.print(" ");        
+        Serial.print(PINS[j]); Serial.print(" ");
     }
   }
   Serial.println();
