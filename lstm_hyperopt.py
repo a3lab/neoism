@@ -14,7 +14,7 @@ from keras.layers import LSTM
 from keras.layers import Embedding
 from keras.callbacks import Callback
 from keras.utils import np_utils
-
+from keras.metrics import categorical_accuracy
 from hyperopt import Trials, STATUS_OK, tpe
 
 from hyperas import optim
