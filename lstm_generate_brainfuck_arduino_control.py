@@ -111,18 +111,22 @@ while True:
 
     if command == b'/reset':
         print("Reset state")
-        new_temperature = 0.1
+        state.reset();
 
     elif command == b'/conn':
         from_pin = int(line[1])
         to_pin   = int(line[2])
         print("Connection: {} {}".format(from_pin, to_pin))
-        new_temperature += 0.2
+        state.connect(from_pin, to_pin)
 
     elif command == b'/done':
-        if temperature != new_temperature:
-            client.send_message("/readings/temperature", new_temperature)
-            temperature = new_temperature
+        print("=====")
+        state.debug()
+        print("Done")
+
+    #     if temperature != new_temperature:
+    #         client.send_message("/readings/temperature", new_temperature)
+    #         temperature = new_temperature
 
 #    time.sleep(1)
 
