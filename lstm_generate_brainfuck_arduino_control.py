@@ -9,7 +9,7 @@ from pythonosc import udp_client
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--serial-port", default="/dev/ttyUSB0", help="The serial port")
-parser.add_argument("--baudrate", default=9600, help="The baudrate")
+parser.add_argument("--baudrate", default=115200, help="The baudrate")
 
 parser.add_argument("--ip", default="127.0.0.1", help="The ip of the OSC server")
 parser.add_argument("--port", type=int, default=5005, help="The port the OSC server is listening on")

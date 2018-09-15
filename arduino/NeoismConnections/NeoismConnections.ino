@@ -4,6 +4,9 @@
 // Instantiate an AsciiMassagePacker for packing massages.
 AsciiMassagePacker outbound;
 
+// Baudrate.
+#define SERIAL_BAUDRATE 115200
+
 // Number of pins.
 #define N_PINS 64
 
@@ -84,7 +87,7 @@ void printConnections(connections_t connections, bool verbose=false) {
 
 void setup() {
 
-  Serial.begin(9600);
+  Serial.begin(SERIAL_BAUDRATE);
 
   // Initialize all pins as input pull-up.
   for (int i=0; i<N_PINS; i++) {
