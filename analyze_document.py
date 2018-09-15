@@ -14,6 +14,7 @@ args = parser.parse_args()
 import numpy
 import os
 import nltk
+nltk.download('punkt')
 
 def print_frequencies_csv(dist, n, separator=''):
     top = dist.most_common(n)
