@@ -63,6 +63,11 @@ def data():
 
 	print("Total Patterns: ", n_patterns)
 
+	numpy.random.seed(12345)
+	p = numpy.random.permutation(n_patterns)
+	dataX = dataX[p]
+	dataY = dataY[p]
+
 	y = np_utils.to_categorical(dataY)
 	X = numpy.reshape(dataX, (n_patterns, seq_length))
 
