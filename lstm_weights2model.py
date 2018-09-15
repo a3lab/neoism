@@ -9,6 +9,7 @@ parser.add_argument("model_output_file", type=str, help="The output file where t
 parser.add_argument("-n", "--n-hidden", type=str, default="256", help="Number of hidden units per layer, as a comma-separated list")
 parser.add_argument("-d", "--dropout", type=str, default="0.2", help="Dropout per layer, as a comma-separated list")
 parser.add_argument("-em", "--embedding-length", type=int, default=0, help="Size of vector to use for first layer embedding (if 0 : don't use embedding)")
+parser.add_argument("-s", "--sequence-length", type=int, default=100, help="Sequence length")
 
 args = parser.parse_args()
 
