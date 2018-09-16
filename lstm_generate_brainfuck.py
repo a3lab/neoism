@@ -15,7 +15,25 @@ parser.add_argument("-I", "--send-ip", default="127.0.0.1", help="The ip of the 
 parser.add_argument("-rP", "--receive-port", type=int, default=5005, help="The port the OSC server is listening on")
 parser.add_argument("-sP", "--send-port", type=int, default=5006, help="The port the OSC server is writing on")
 
+parser.add_argument("--arduino-serial-number", default=None, help="The serial number of the Arduino (to auto-find the serial port)")
+parser.add_argument("--baudrate", default=115200, help="The baudrate")
+
 args = parser.parse_args()
+
+from pythonosc import osc_message_builder, udp_client, dispatcher, osc_server
+import threading
+client = udp_client.SimpleUDPClient(args.send_ip, args.send_port)
+
+import serial
+import serial.tools.list_ports
+
+def find_arduino(serial_number):
+    for pinfo in serial.tools.list_ports.comports():
+        if pinfo.serial_number == serial_number:
+            return serial.Serial(pinfo.device,args.baudrate,timeout=5)
+    raise IOError("Could not find an arduino - is it plugged in?")
+
+ard = find_arduino(serial_number=args.arduino_serial_number)
 
 import sys
 import numpy
@@ -109,9 +127,162 @@ temperature = args.temperature
 sampling_mode = args.sampling_mode
 n_best = args.n_best
 
-from pythonosc import osc_message_builder, udp_client, dispatcher, osc_server
 
-client = udp_client.SimpleUDPClient(args.send_ip, args.send_port)
+# This class represents the current state of the machine in terms of its connections.
+class State:
+
+    N_PINS = 64
+    PORTS = [
+        "31!", "32!", "33!",
+
+        "31?", "32?", "33?",               "34?", "35?", "36?", "37?",
+        "34!", "35!", "36!", "37!",        "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!",
+
+        "21?", "22?", "23?", "24?", "25?", "26?", "27?", "28?",        "29?", "2A?", "2B?", "2C?",
+        "29!", "2A!", "2B!", "2C!",        "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!",
+
+        "11?", "12?", "13?", "14?", "15?", "16?", "17?", "18?",
+
+        "01!", "02!", "03!", "04!", "05!",
+        "01?", "02?", "03?", "04?", "05?"
+    ]
+    connections = None
+
+    def __init__(self):
+        # Create array of arrays.
+        self.connections = [ [ False for j in range(self.N_PINS) ] for i in range(self.N_PINS) ]
+
+    def copy_from(self, other):
+        self.connections = other.connections
+
+    def reset(self):
+        for i in range(self.N_PINS):
+            for j in range(self.N_PINS):
+                self.disconnect(i, j)
+
+    def connect(self, fromId, toId):
+        self.set_connect(fromId, toId, True)
+
+    def disconnect(self, fromId, toId):
+        self.set_connect(fromId, toId, False)
+
+    def set_connect(self, fromId, toId, state):
+        self.connections[fromId][toId] = state
+        self.connections[toId][fromId] = state
+
+    def is_connected(self, fromId, toId):
+        return self.connections[fromId][toId]
+
+    def get_port_id(self, portname):
+        return self.PORTS.index(portname)
+
+    def get_port_name(self, portId):
+        return self.PORTS[portId]
+
+    def get_all_ports(self):
+        return self.PORTS
+
+    def get_connections(self, portname):
+        conn = []
+        portId = self.get_port_id(portname)
+        for i in range(self.N_PINS):
+            if i != portId and self.is_connected(portId, i):
+                conn.append(self.get_port_name(i))
+        return conn
+
+    def get_info(self, portname):
+        info = {
+            "name": portname,
+            "code" : portname[0:2],
+            "level": int(portname[0]),
+            "position": portname[1],
+            "input": portname[2] == "!"
+        }
+        return info
+
+    def debug(self):
+        for p in self.PORTS:
+            c = self.get_connections(p)
+            if c:
+                print("{} => {}".format(p, c))
+
+def process_group(weights, port_names, group, block_size, n_units, noise_level, lstm=False):
+    global state
+    from_i = 0
+    lstm_offset = 0
+    for port in port_names:
+        connections = state.get_connections(port)
+        port_info = state.get_info(port)
+        arguments = [ weights, group, from_i, block_size, 0, n_units]
+        if lstm:
+            arguments += [lstm_offset]
+
+        if not connections:
+            print("Port {} disconnected".format(port))
+            if lstm:
+                weights_lstm_cut(*arguments)
+            else:
+                weights_cut(*arguments)
+        else:
+            info = state.get_info(connections[0])
+            if info["code"] == port_info["code"]: # correct port
+                pass
+                # if lstm:
+                #     weights_lstm_restore(*arguments)
+                # else:
+                #     weights_restore(*arguments)
+            else:
+                print("Port {} misconnected".format(port))
+                arguments += [ noise_level ]
+                if lstm:
+                    weights_lstm_noise(*arguments)
+                else:
+                    weights_noise(*arguments)
+#                speed_adjust += port_info["level"] - info["level"]
+        # Special case: for LSTM layers only update the from_i variable at the end of offset cycles
+        if lstm:
+            lstm_offset += 1
+            if lstm_offset >= 4:
+                lstm_offset = 0
+                from_i += block_size
+        else:
+            from_i += block_size
+
+import copy
+def process_state():
+    global model
+
+    # Reload old weights.
+    weights = copy.deepcopy(saved_weights)
+
+#    print("processsing state")
+    n_embeddings = 5
+    n_characters = 56
+    n_hidden_layer_1 = 64
+    n_hidden_layer_2 = 1024
+
+    speed_adjust = 0
+    temperature_adjust = 0
+
+    # Output layer.
+#    print("Process output")
+    process_group(weights, [ "31!", "32!", "33!" ], 7, int(n_hidden_layer_2 / 3), n_characters, 0.2)
+
+    # LSTM layer #2
+#    print("Process layer 2")
+    process_group(weights, [ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ], 4, int(n_hidden_layer_1 / 2), n_hidden_layer_2, 0.2, True)
+    process_group(weights, [ "34!", "35!", "36!", "37!" ], 5, n_hidden_layer_2, n_hidden_layer_2, 0.2, True)
+
+    # LSTM layer #1
+#    print("Process layer 1")
+    process_group(weights, [ "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!" ], 1, int(n_embeddings / 2), n_hidden_layer_1, 0.2, True)
+    process_group(weights, [ "29!", "2A!", "2B!", "2C!" ], 2, n_hidden_layer_1, n_hidden_layer_1, 0.2, True)
+
+    # Embeddings layer
+#    print("Process embeddings")
+    process_group(weights, [ "01!", "02!", "03!", "04!", "05!" ], 0, int(n_characters / 5), n_embeddings, 0.2)
+
+    model.set_weights(weights)
 
 def generate_start(unused_addr):
     global has_embeddings, n_best, sampling_mode, model, pattern
@@ -169,7 +340,7 @@ def generate_next(unused_addr):
     result = int_to_char[index]
     seq_in = [int_to_char[value] for value in pattern]
     if result == '\n':
-        result = "        "
+        result = " * * * "
     result = result.upper()
     client.send_message("/neoism/text", result)
     pattern = numpy.append(pattern, index)
@@ -192,63 +363,93 @@ def set_n_best(unused_addr, v):
     n_best = int(v)
 
 # Note for offset: order is 0 - input, 1 - forget, 2 - gate, 3 - output
-def brain_lstm_cut(unused_addr, group, input, n_inputs, unit, n_units, offset):
-    global model
+def weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset):
     print("Brain LSTM cell cut {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
-    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
     for u in range(unit, unit+n_units):
         weights[group][i_f:i_t,4*u+offset] = 0
 #    weights[group+1][u_f:u_t] = 0
-    model.set_weights(weights)
 
-def brain_lstm_noise(unused_addr, group, input, n_inputs, unit, n_units, offset, noise):
-    global model
+def weights_lstm_noise(weights, group, input, n_inputs, unit, n_units, offset, noise):
+    global saved_weights
     print("Brain LSTM cell noise {} {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset, noise))
-    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
     for u in range(unit, unit+n_units):
         u_t = 4*u+offset
         weights[group][i_f:i_t,u_t] = saved_weights[group][i_f:i_t,u_t] + numpy.random.normal(0, noise, size=n_inputs)
 #    weights[group+1][u_f:u_t] = 0
-    model.set_weights(weights)
 
-def brain_lstm_restore(unused_addr, group, input, n_inputs, unit, n_units, offset):
-    global model
+def weights_lstm_restore(weights, group, input, n_inputs, unit, n_units, offset):
+    global saved_weights
     print("Brain LSTM cell restore {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
-    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
     for u in range(unit, unit+n_units):
         u_t = 4*u+offset
         weights[group][i_f:i_t,u_t] = saved_weights[group][i_f:i_t,u_t]
 #    weights[group+1][u_f:u_t] = 0
-    model.set_weights(weights)
 
-def brain_cut(unused_addr, group, input, n_inputs, unit, n_units):
-    global model
+def weights_cut(weights, group, input, n_inputs, unit, n_units):
     print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
-    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
     u_f = int(unit)
     u_t = int(unit+n_units)
     weights[group][i_f:i_t,u_f:u_t] = 0
 #    weights[group+1][u_f:u_t] = 0
-    model.set_weights(weights)
 
-def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
-    global model
+def weights_noise(weights, group, input, n_inputs, unit, n_units, noise):
+    global saved_weights
     print("Brain noise {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, noise))
-    weights = model.get_weights()
     i_f = int(input)
     i_t = int(input+n_inputs)
     u_f = int(unit)
     u_t = int(unit+n_units)
     weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t] + numpy.random.normal(0, noise, size=(n_inputs, n_units))
 #    weights[group+1][u_f:u_t] = 0
+
+# Note for offset: order is 0 - input, 1 - forget, 2 - gate, 3 - output
+def brain_lstm_cut(unused_addr, group, input, n_inputs, unit, n_units, offset):
+    global model
+    print("Brain LSTM cell cut {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
+    weights = model.get_weights()
+    weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset)
+    model.set_weights(weights)
+
+def brain_lstm_noise(unused_addr, group, input, n_inputs, unit, n_units, offset, noise):
+    global model
+    weights = model.get_weights()
+    weights_lstm_noise(weights, group, input, n_inputs, unit, n_units, offset, noise)
+    model.set_weights(weights)
+
+def brain_lstm_restore(unused_addr, group, input, n_inputs, unit, n_units, offset):
+    global model
+    print("Brain LSTM cell restore {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
+    weights = model.get_weights()
+    weights_lstm_restore(weights, group, input, n_inputs, unit, n_units, offset)
+    model.set_weights(weights)
+
+def brain_cut(unused_addr, group, input, n_inputs, unit, n_units):
+    global model
+    print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
+    weights = model.get_weights()
+    weights_cut(weights, group, input, n_inputs, unit, n_units)
+    model.set_weights(weights)
+
+def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
+    global model
+    print("Brain noise {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, noise))
+    weights = model.get_weights()
+    weights_noise(weights, group, input, n_inputs, unit, n_units, noise)
+    model.set_weights(weights)
+
+def brain_restore(unused_addr, group, input, n_inputs, unit, n_units):
+    global model, saved_weights
+    print("Brain restore {} {} {} {}".format(input, n_inputs, unit, n_units))
+    weights = model.get_weights()
+    weights_restore(weights, group, input, n_inputs, unit, n_units)
     model.set_weights(weights)
 
 # def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
@@ -266,27 +467,6 @@ def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
 #     weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f2:i_t2,u_f2:u_t2]
 #     weights = model.layers[1].set_weights(weights)
 #
-def brain_restore(unused_addr, group, input, n_inputs, unit, n_units):
-    global model, saved_weights
-    print("Brain restore {} {} {} {}".format(input, n_inputs, unit, n_units))
-    weights = model.get_weights()
-    i_f = int(input)
-    i_t = int(input+n_inputs)
-    u_f = int(unit)
-    u_t = int(unit+n_units)
-    weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t]
-#    weights[group+1][u_f:u_t] = saved_weights[group+1][u_f:u_t]
-    model.set_weights(weights)
-
-# def brain_cut_unit(unused_addr, unit, n_units):
-#     global model
-#     print("Brain cut unit {}".format(unit))
-#     weights = model.layers[1].get_weights()
-#     i = int(unit)*4
-#     w = weights[0]
-#     w[:,i:i+n_units*4] = 0
-#     weights[0] = w
-#     weights = model.layers[1].set_weights(weights)
 
 dispatcher = dispatcher.Dispatcher()
 dispatcher.map("/neoism/start", generate_start)
@@ -308,7 +488,41 @@ dispatcher.map("/neoism/brain_lstm_restore", brain_lstm_restore)
 
 server = osc_server.ThreadingOSCUDPServer( ("127.0.0.1", args.receive_port), dispatcher)
 print("Serving on {}".format(server.server_address))
-server.serve_forever()
+server_thread = threading.Thread(target=server.serve_forever)
+server_thread.start()
+
+state = State()
+new_state = State()
+
+import random
+import copy
+while True:
+    # Receive ASCIIMassage from Arduino
+    line = ard.readline().rstrip().split()
+    if line:
+        command = line[0]
+
+        if command == b'/reset':
+#            print("Reset state")
+            new_state.reset()
+
+        elif command == b'/conn':
+            try:
+                from_pin = int(line[1])
+                to_pin   = int(line[2])
+    #            print("Connection: {} {}".format(from_pin, to_pin))
+                new_state.connect(from_pin, to_pin)
+            except:
+                pass
+
+        elif command == b'/done':
+#            print("=====")
+            process_state()
+#            state.debug()
+            state.copy_from(new_state)
+#            print("Done")
 
 
+
+server.shutdown()
 print("\nDone.")
