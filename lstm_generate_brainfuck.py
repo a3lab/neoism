@@ -191,6 +191,42 @@ def set_n_best(unused_addr, v):
     print("N. best: " + str(v))
     n_best = int(v)
 
+# Note for offset: order is 0 - input, 1 - forget, 2 - gate, 3 - output
+def brain_lstm_cut(unused_addr, group, input, n_inputs, unit, n_units, offset):
+    global model
+    print("Brain LSTM cell cut {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
+    weights = model.get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    for u in range(unit, unit+n_units):
+        weights[group][i_f:i_t,4*u+offset] = 0
+#    weights[group+1][u_f:u_t] = 0
+    model.set_weights(weights)
+
+def brain_lstm_noise(unused_addr, group, input, n_inputs, unit, n_units, offset, noise):
+    global model
+    print("Brain LSTM cell noise {} {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset, noise))
+    weights = model.get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    for u in range(unit, unit+n_units):
+        u_t = 4*u+offset
+        weights[group][i_f:i_t,u_t] = saved_weights[group][i_f:i_t,u_t] + numpy.random.normal(0, noise, size=n_inputs)
+#    weights[group+1][u_f:u_t] = 0
+    model.set_weights(weights)
+
+def brain_lstm_restore(unused_addr, group, input, n_inputs, unit, n_units, offset):
+    global model
+    print("Brain LSTM cell restore {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
+    weights = model.get_weights()
+    i_f = int(input)
+    i_t = int(input+n_inputs)
+    for u in range(unit, unit+n_units):
+        u_t = 4*u+offset
+        weights[group][i_f:i_t,u_t] = saved_weights[group][i_f:i_t,u_t]
+#    weights[group+1][u_f:u_t] = 0
+    model.set_weights(weights)
+
 def brain_cut(unused_addr, group, input, n_inputs, unit, n_units):
     global model
     print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
@@ -268,6 +304,10 @@ dispatcher.map("/neoism/brain_cut", brain_cut)
 dispatcher.map("/neoism/brain_noise", brain_noise)
 #dispatcher.map("/neoism/brain_copy", brain_copy)
 dispatcher.map("/neoism/brain_restore", brain_restore)
+dispatcher.map("/neoism/brain_lstm_cut", brain_lstm_cut)
+dispatcher.map("/neoism/brain_lstm_noise", brain_lstm_noise)
+#dispatcher.map("/neoism/brain_copy", brain_copy)
+dispatcher.map("/neoism/brain_lstm_restore", brain_lstm_restore)
 # dispatcher.map("/neoism/brain_cut/input", brain_cut_input)
 # dispatcher.map("/neoism/brain_cut/unit", brain_cut_unit)
 
