@@ -510,6 +510,8 @@ period = 1 / args.frame_rate
 generate_start()
 start_time = time.time()
 
+enable_processing = True
+
 import random
 import copy
 while True:
@@ -519,9 +521,18 @@ while True:
         if line:
             command = line[0]
 
-            if command == b'/reset':
-                new_state.reset()
+            # Off command sent by the Arduino to pause the processing.
+            if command == b'/off':
+                if enable_processing:
+                    client.send_message("/neoism/text", "        ") # clear screen
+                    enable_processing = False
 
+            # Reset states.
+            elif command == b'/reset':
+                new_state.reset()
+                enable_processing = True
+
+            # Connected wires.
             elif command == b'/conn':
                 try:
                     from_pin = int(line[1])
@@ -530,6 +541,7 @@ while True:
                 except:
                     pass
 
+            # State completed: update it.
             elif command == b'/done':
                 process_state()
     #            state.debug()
@@ -537,12 +549,13 @@ while True:
     except:
         continue
 
-    # Look if we need to emit a character.
-    ct = time.time()
-    if ct - start_time >= period:
-        print("t={} ({})".format(ct, ct-start_time))
-        generate_next()
-        start_time = ct
+    if enable_processing:
+        # Look if we need to emit a character.
+        ct = time.time()
+        if ct - start_time >= period:
+            print("t={} ({})".format(ct, ct-start_time))
+            generate_next()
+            start_time = ct
 
 server.shutdown()
 print("\nDone.")

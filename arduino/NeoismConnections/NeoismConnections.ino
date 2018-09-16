@@ -7,6 +7,10 @@ AsciiMassagePacker outbound;
 // Baudrate.
 #define SERIAL_BAUDRATE 115200
 
+// Pin number of master switch. This pin is connected to the machine's switch and allows to stop the computation processes.
+#define MASTER_SWITCH_PIN A5
+#define MASTER_SWITCH_CHECK_PERIOD 1000
+
 // Number of pins.
 #define N_PINS 64
 
@@ -16,10 +20,11 @@ AsciiMassagePacker outbound;
 #define bitClear64(value, bit) ((value) &= ~(1ULL << (bit)))
 #define bitWrite64(value, bit, bitvalue) (bitvalue ? bitSet64(value, bit) : bitClear64(value, bit))
 
-#define DISCONNECTED 0ULL
-
 // Type to describe the connective state of one specific pin to the 64 others.
 typedef uint64_t connections_t;
+
+// Value if connection_t is disconnected.
+#define DISCONNECTED 0ULL
 
 // Total: 64 pins
 // Reference: https://docs.google.com/spreadsheets/d/1z8Q2Ge5YN9jgCZAnuwXoPhfJdWPdnO3NLYzQ2Bg6Gg8/edit?ts=5b99dae7
@@ -93,43 +98,57 @@ void setup() {
   for (int i=0; i<N_PINS; i++) {
     pinMode(PINS[i], INPUT_PULLUP);
   }
+
+  // Switch pin mode.
+  pinMode(MASTER_SWITCH_PIN, INPUT_PULLUP);
 }
 
 void loop() {
-  // Reset state.
-  outbound.beginPacket("/reset");
-  outbound.streamPacket(&Serial);
-  
-  // Go through all pins : check and print connection state.
-  connections_t connections[N_PINS];
-  for (int i=0; i<N_PINS; i++)
-    connections[i] = getConnections(i);
+  // Check switch state.
+  if (digitalRead(MASTER_SWITCH_PIN) == LOW) {
+    // Reset state.
+    outbound.beginPacket("/reset");
+    outbound.streamPacket(&Serial);
     
-  // Verify: if someone "tricks" the system by connecting the wire to GND we can fix by comparing to inverse connection.
-  for (int i=0; i<N_PINS; i++)
-    for (int j=0; j<N_PINS; j++)
-      if (i != j && bitRead64(connections[i], j) != bitRead64(connections[j], i)) {
-        bitClear64(connections[i], j);
-        bitClear64(connections[j], i);
-      }
-    
-  // Send state.
-  for (int i=0; i<N_PINS; i++) {
-    connections_t c = connections[i];
-    if (c != DISCONNECTED) {
-      for (int j=0; j<N_PINS; j++) {
-        bool val = bitRead64(c, j);
-        if (val) {
-          outbound.beginPacket("/conn");
-          outbound.addInt(i);
-          outbound.addInt(j);
-          outbound.streamPacket(&Serial);
+    // Go through all pins : check and print connection state.
+    connections_t connections[N_PINS];
+    for (int i=0; i<N_PINS; i++)
+      connections[i] = getConnections(i);
+      
+    // Verify: if someone "tricks" the system by connecting the wire to GND we can fix by comparing to inverse connection.
+    for (int i=0; i<N_PINS; i++)
+      for (int j=0; j<N_PINS; j++)
+        if (i != j && bitRead64(connections[i], j) != bitRead64(connections[j], i)) {
+          bitClear64(connections[i], j);
+          bitClear64(connections[j], i);
+        }
+      
+    // Send state.
+    for (int i=0; i<N_PINS; i++) {
+      connections_t c = connections[i];
+      if (c != DISCONNECTED) {
+        for (int j=0; j<N_PINS; j++) {  
+          bool val = bitRead64(c, j);
+          if (val) {
+            outbound.beginPacket("/conn");
+            outbound.addInt(i);
+            outbound.addInt(j);
+            outbound.streamPacket(&Serial);
+          }
         }
       }
     }
+  
+    // Reset state.
+    outbound.beginPacket("/done");
+    outbound.streamPacket(&Serial);
   }
+  else {
+    // Off state.
+    outbound.beginPacket("/off");
+    outbound.streamPacket(&Serial);
 
-  // Reset state.
-  outbound.beginPacket("/done");
-  outbound.streamPacket(&Serial);
+    // Wait a bit.
+    delay(MASTER_SWITCH_CHECK_PERIOD);
+  }
 }
