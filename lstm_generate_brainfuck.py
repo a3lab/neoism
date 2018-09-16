@@ -247,11 +247,6 @@ def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
     i_t = int(input+n_inputs)
     u_f = int(unit)
     u_t = int(unit+n_units)
-    print("{} {} {} {}".format(i_f, i_t, u_f, u_t))
-    print(weights[group].shape)
-    print(weights[group][i_f:i_t,u_f:u_t].shape)
-    print(saved_weights[group][i_f:i_t,u_f:u_t].shape)
-    print( numpy.random.normal(0, noise, size=(n_inputs, n_units)).shape)
     weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t] + numpy.random.normal(0, noise, size=(n_inputs, n_units))
 #    weights[group+1][u_f:u_t] = 0
     model.set_weights(weights)
