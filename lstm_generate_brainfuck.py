@@ -210,6 +210,13 @@ def process_group(weights, port_names, group, block_size, n_units, noise_level, 
     global state
     from_i = 0
     lstm_offset = 0
+    disconnection_count = 0
+    for port in port_names:
+        connections = state.get_connections(port)
+        if not connections:
+            disconnection_count += 1
+    connection_level = 1.0 - (disconnection_count / len(port_names))
+
     for port in port_names:
         connections = state.get_connections(port)
         port_info = state.get_info(port)
@@ -219,6 +226,7 @@ def process_group(weights, port_names, group, block_size, n_units, noise_level, 
 
         if not connections:
             print("Port {} disconnected".format(port))
+            arguments += [ connection_level ]
             if lstm:
                 weights_lstm_cut(*arguments)
             else:
@@ -363,12 +371,13 @@ def set_n_best(unused_addr, v):
     n_best = int(v)
 
 # Note for offset: order is 0 - input, 1 - forget, 2 - gate, 3 - output
-def weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset):
+def weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset, connection_level):
     print("Brain LSTM cell cut {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
     i_f = int(input)
     i_t = int(input+n_inputs)
     for u in range(unit, unit+n_units):
-        weights[group][i_f:i_t,4*u+offset] = 0
+        u_t = 4*u+offset
+        weights[group][i_f:i_t,4*u+offset] = saved_weights[group][i_f:i_t,u_t] * connection_level
 #    weights[group+1][u_f:u_t] = 0
 
 def weights_lstm_noise(weights, group, input, n_inputs, unit, n_units, offset, noise):
@@ -391,13 +400,13 @@ def weights_lstm_restore(weights, group, input, n_inputs, unit, n_units, offset)
         weights[group][i_f:i_t,u_t] = saved_weights[group][i_f:i_t,u_t]
 #    weights[group+1][u_f:u_t] = 0
 
-def weights_cut(weights, group, input, n_inputs, unit, n_units):
+def weights_cut(weights, group, input, n_inputs, unit, n_units, connection_level):
     print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
     i_f = int(input)
     i_t = int(input+n_inputs)
     u_f = int(unit)
     u_t = int(unit+n_units)
-    weights[group][i_f:i_t,u_f:u_t] = 0
+    weights[group][i_f:i_t,u_f:u_t] = saved_weights[group][i_f:i_t,u_f:u_t] * connection_level
 #    weights[group+1][u_f:u_t] = 0
 
 def weights_noise(weights, group, input, n_inputs, unit, n_units, noise):
@@ -415,7 +424,7 @@ def brain_lstm_cut(unused_addr, group, input, n_inputs, unit, n_units, offset):
     global model
     print("Brain LSTM cell cut {} {} {} {} {} {}".format(group, input, n_inputs, unit, n_units, offset))
     weights = model.get_weights()
-    weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset)
+    weights_lstm_cut(weights, group, input, n_inputs, unit, n_units, offset, 1.0)
     model.set_weights(weights)
 
 def brain_lstm_noise(unused_addr, group, input, n_inputs, unit, n_units, offset, noise):
@@ -435,7 +444,7 @@ def brain_cut(unused_addr, group, input, n_inputs, unit, n_units):
     global model
     print("Brain cut {} {} {} {} {}".format(group, input, n_inputs, unit, n_units))
     weights = model.get_weights()
-    weights_cut(weights, group, input, n_inputs, unit, n_units)
+    weights_cut(weights, group, input, n_inputs, unit, n_units, 1.0)
     model.set_weights(weights)
 
 def brain_noise(unused_addr, group, input, n_inputs, unit, n_units, noise):
