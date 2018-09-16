@@ -30,6 +30,7 @@ client.send_message("/neoism/sampling_mode", "softmax")
 client.send_message("/neoism/n_best", 0)
 client.send_message("/neoism/temperature", new_temperature)
 
+# This class represents the current state of the machine in terms of its connections.
 class State:
 
     N_PINS = 64
@@ -107,7 +108,37 @@ class State:
             if c:
                 print("{} => {}".format(p, c))
 
+def process_group(port_names, group, block_size, n_units, noise_level, lstm=False):
+    global state
+    from_i = 0
+    lstm_offset = 0
+    for port in port_names:
+        connections = state.get_connections(port)
+        port_info = state.get_info(port)
+        arguments = [ group, from_i, block_size, 0, n_units]
+        message_prefix = "/neoism/brain_"
+        if lstm:
+            message_prefix += "lstm_"
+            arguments += [lstm_offset]
+
+        if not connections:
+            client.send_message(message_prefix + "cut", arguments)
+        else:
+            info = state.get_info(connections[0])
+            if info["code"] == port_info["code"]: # correct port
+                client.send_message(message_prefix + "restore", arguments)
+            else:
+                client.send_message(message_prefix + "noise", arguments + [noise_level])
+#                speed_adjust += port_info["level"] - info["level"]
+        # Special case: for LSTM layers only update the from_i variable at the end of offset cycles
+        if lstm:
+            lstm_offset += 1
+            if lstm_offset >= 4:
+                lstm_offset = 0
+                from_i += block_size
+
 def process_state():
+    print("processsing state")
     n_embeddings = 5
     n_characters = 56
     n_hidden_layer_1 = 64
@@ -117,22 +148,43 @@ def process_state():
     temperature_adjust = 0
 
     # Output layer.
-    noise_level = 0.2
-    from_i = 0
-    block_size = int(n_hidden_layer_2 / 3)
-    for port in [ "31!", "32!", "33!" ]:
-        connections = state.get_connections(port)
-        port_info = state.get_info(port)
-        if not connections:
-            client.send_message("/neoism/brain_cut", [ 7, from_i, block_size, 0, n_characters])
-        else:
-            info = state.get_info(connections[0])
-            if info["code"] == port_info["code"]: # correct port
-                client.send_message("/neoism/brain_restore", [ 7, from_i, block_size, 0, n_characters])
-            else:
-                client.send_message("/neoism/brain_noise", [ 7, from_i, block_size, 0, n_characters, noise_level])
-                speed_adjust += port_info["level"] - info["level"]
-        from_i += block_size
+    print("Process output")
+    process_group([ "31!", "32!", "33!" ], 7, int(n_hidden_layer_2 / 3), n_characters, 0.2)
+
+    # LSTM layer #2
+    print("Process layer 2")
+    process_group([ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ], 4, int(n_hidden_layer_1 / 2), n_hidden_layer_2, 0.2, True)
+    process_group([ "34!", "35!", "36!", "37!" ], 5, n_hidden_layer_2, n_hidden_layer_2, 0.2, True)
+
+    # LSTM layer #1
+    print("Process layer 1")
+    process_group([ "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!" ], 1, int(n_embeddings / 2), n_hidden_layer_1, 0.2, True)
+    process_group([ "29!", "2A!", "2B!", "2C!" ], 2, n_hidden_layer_1, n_hidden_layer_1, 0.2, True)
+
+    # Embeddings layer
+    print("Process embeddings")
+    process_group([ "01!", "02!", "03!", "04!", "05!" ], 0, int(n_characters / 5), n_embeddings, 0.2)
+
+    # # Recurrent layer #2
+    # noise_level = 0.2
+    # from_i = 0
+    # group = 4
+    # offset = 0
+    # block_size = int(n_hidden_layer_1 / 2)
+    # for port in [ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ]:
+    #     connections = state.get_connections(port)
+    #     port_info = state.get_info(port)
+    #     if not connections:
+    #         client.send_message("/neoism/brain_lstm_cut", [ group, from_i, block_size, 0, n_hidden_layer_2, offset])
+    #     else:
+    #         info = state.get_info(connections[0])
+    #         if info["code"] == port_info["code"]: # correct port
+    #             client.send_message("/neoism/brain_lstm_restore", [ group, from_i, block_size, 0, n_hidden_layer_2, offset])
+    #         else:
+    #             client.send_message("/neoism/brain_lstm_noise", [ group, from_i, block_size, 0, n_hidden_layer_2, offset, noise_level])
+    #             speed_adjust += port_info["level"] - info["level"]
+    #     from_i += block_size
+    #     offset = (offset + 1) % 4
 
     # Todo: check all inputs connected into inputs => increase temperature
 
