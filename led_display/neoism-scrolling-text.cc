@@ -63,14 +63,38 @@ void error(int num, const char *msg, const char *path)
     fflush(stdout);
 }
 
+const int maxLineLength = 7;
+
 int text_handler(const char *path, const char *types, lo_arg ** argv,
                 int argc, void *data, void *user_data)
 {
     /* example showing pulling the argument values out of the argv array */
     printf("%s <- %s\n\n", path, &argv[0]->s);
+
     std::string* line=(std::string*)(user_data);
-    *line = &argv[0]->s;
+    std::string newChars(&argv[0]->s);
+
+   if (newChars.size() > maxLineLength)
+      newChars = newChars.substr(newChars.size()-maxLineLength);
+
+   int newCharsLength = newChars.size();
+   std::string newLine = line->substr(newCharsLength) + newChars;
+   *line = newLine;
     fflush(stdout);
+
+    return 0;
+}
+
+int color_handler(const char *path, const char *types, lo_arg ** argv,
+                int argc, void *data, void *user_data)
+{
+    /* example showing pulling the argument values out of the argv array */
+    //printf("%s <- %s\n\n", path, &argv[0]->s);
+
+    Color* col = (Color*)user_data;
+    col->r = argv[0]->i;
+    col->g = argv[1]->i;
+    col->b = argv[2]->i;
 
     return 0;
 }
@@ -90,8 +114,11 @@ int main(int argc, char *argv[]) {
 
   const char *bdf_font_file = NULL;
   std::string line;
+  for (int i=0; i<maxLineLength; i++)
+    line += " ";
+
   /* x_origin is set just right of the screen */
-  int x_orig = (matrix_options.chain_length * matrix_options.cols) + 5;
+  int x_orig = 0;//(matrix_options.chain_length * matrix_options.cols) + 5;
   int y_orig = 0;
   int brightness = 100;
   int letter_spacing = 0;
@@ -132,9 +159,9 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  for (int i = optind; i < argc; ++i) {
-    line.append(argv[i]).append(" ");
-  }
+//  for (int i = optind; i < argc; ++i) {
+//    line.append(argv[i]).append(" ");
+//  }
 
   if (line.empty()) {
     fprintf(stderr, "Add the text you want to print on the command-line.\n");
@@ -201,9 +228,11 @@ int main(int argc, char *argv[]) {
   /* start a new server on port 7770 */
   lo_server_thread st = lo_server_thread_new("7770", error);
 
-  /* add method that will match the path /foo/bar, with two numbers, coerced
-   * to float and int */
+  /* add method that will print text */
   lo_server_thread_add_method(st, "/neoism/text", "s", text_handler, &line);
+
+  /* add method that will change color */
+  lo_server_thread_add_method(st, "/neoism/color", "iii", color_handler, &color);
 
   lo_server_thread_start(st);
 
@@ -226,10 +255,10 @@ int main(int argc, char *argv[]) {
                                   color, outline_font ? NULL : &bg_color,
                                   line.c_str(), letter_spacing);
 
-    if (--x + length < 0) {
-      x = x_orig;
-      if (loops > 0) --loops;
-    }
+ //    if (--x + length < 0) {
+//      x = x_orig;
+//      if (loops > 0) --loops;
+//    }
 
     usleep(delay_speed_usec);
     // Swap the offscreen_canvas with canvas on vsync, avoids flickering
