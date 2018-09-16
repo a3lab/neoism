@@ -12,11 +12,11 @@
 #X obj 287 645 list prepend send;
 #X obj 287 672 list trim;
 #X obj 250 218 metro 100;
-#X obj 156 274 oscformat /readings/start;
-#X obj 250 314 oscformat /readings/next;
-#X obj 552 214 oscformat /readings/temperature;
-#X obj 774 212 oscformat /readings/n_best;
-#X obj 390 350 oscformat -f s /readings/sampling_mode;
+#X obj 156 274 oscformat /neoism/start;
+#X obj 250 314 oscformat /neoism/next;
+#X obj 552 214 oscformat /neoism/temperature;
+#X obj 774 212 oscformat /neoism/n_best;
+#X obj 390 350 oscformat -f s /neoism/sampling_mode;
 #X msg 390 266 list argmax;
 #X msg 424 292 list softmax;
 #X obj 390 30 vradio 15 0 0 2 empty empty empty 0 -8 0 10 -262144 -1

@@ -14,7 +14,7 @@ from keras.layers import LSTM
 from keras.layers import Embedding
 from keras.callbacks import Callback
 from keras.utils import np_utils
-
+from keras.metrics import categorical_accuracy
 from hyperopt import Trials, STATUS_OK, tpe
 
 from hyperas import optim
@@ -26,18 +26,25 @@ def data():
 	parser.add_argument("text_file", type=str, help="The file containing the original text")
 	parser.add_argument("-l", "--n-layers", type=int, default=1, help="Number of layers")
 	parser.add_argument("-s", "--sequence-length", type=int, default=100, help="Sequence length")
+	parser.add_argument("-w", "--use-words", action='store_true', default=False, help="Train at word-level instead of character-level")
+
 	args = parser.parse_args()
 	seq_length = args.sequence_length
+	use_words = args.use_words
 
 	raw_text = open(args.text_file).read()
 	raw_text = raw_text.lower()
+
+	if use_words:
+		import nltk
+		raw_text = nltk.word_tokenize(raw_text)
 
 	chars = sorted(list(set(raw_text)))
 	char_to_int = dict((c, i) for i, c in enumerate(chars))
 
 	n_chars = len(raw_text)
 	n_vocab = len(chars)
-	print("Total Characters: ", n_chars)
+	print("Total ", ("Words" if use_words else "Characters"), ": ", n_chars)
 	print("Total Vocab: ", n_vocab)
 
 	dataX = []
@@ -55,6 +62,11 @@ def data():
 	dataY = numpy.array(dataY)
 
 	print("Total Patterns: ", n_patterns)
+
+	numpy.random.seed(12345)
+	p = numpy.random.permutation(n_patterns)
+	dataX = dataX[p]
+	dataY = dataY[p]
 
 	y = np_utils.to_categorical(dataY)
 	X = numpy.reshape(dataX, (n_patterns, seq_length))
