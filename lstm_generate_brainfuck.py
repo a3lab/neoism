@@ -10,6 +10,8 @@ parser.add_argument("-N", "--n-words", type=int, default=1000, help="Number of w
 parser.add_argument("-T", "--temperature", type=float, default=1, help="Temperature argument [0, +inf] (for softmax sampling) (higher: more uniform, lower: more greedy")
 parser.add_argument("-b", "--n-best", type=int, default=0, help="Number of best choices from which to pick (to avoid too unlikely outcomes)")
 
+parser.add_argument("-r", "--frame-rate", type=float, default=1, help="Number of letters per second")
+
 # OSC parameters
 parser.add_argument("-I", "--send-ip", default="127.0.0.1", help="The ip of the OSC server")
 parser.add_argument("-rP", "--receive-port", type=int, default=5005, help="The port the OSC server is listening on")
@@ -35,6 +37,7 @@ def find_arduino(serial_number):
 
 ard = find_arduino(serial_number=args.arduino_serial_number)
 
+import time
 import sys
 import numpy
 import tensorflow as tf
@@ -292,13 +295,13 @@ def process_state():
 
     model.set_weights(weights)
 
-def generate_start(unused_addr):
+def generate_start(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern
     print(args)
     model.reset_states()
     pattern = seed
 
-def generate_next(unused_addr):
+def generate_next(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern, n_vocab, int_to_char, graph
 
     if has_embeddings:
@@ -502,36 +505,44 @@ server_thread.start()
 
 state = State()
 new_state = State()
+period = 1 / args.frame_rate
+
+generate_start()
+start_time = time.time()
 
 import random
 import copy
 while True:
-    # Receive ASCIIMassage from Arduino
-    line = ard.readline().rstrip().split()
-    if line:
-        command = line[0]
+    # Try to receive ASCIIMassage from Arduino
+    try:
+        line = ard.readline().rstrip().split()
+        if line:
+            command = line[0]
 
-        if command == b'/reset':
-#            print("Reset state")
-            new_state.reset()
+            if command == b'/reset':
+                new_state.reset()
 
-        elif command == b'/conn':
-            try:
-                from_pin = int(line[1])
-                to_pin   = int(line[2])
-    #            print("Connection: {} {}".format(from_pin, to_pin))
-                new_state.connect(from_pin, to_pin)
-            except:
-                pass
+            elif command == b'/conn':
+                try:
+                    from_pin = int(line[1])
+                    to_pin   = int(line[2])
+                    new_state.connect(from_pin, to_pin)
+                except:
+                    pass
 
-        elif command == b'/done':
-#            print("=====")
-            process_state()
-#            state.debug()
-            state.copy_from(new_state)
-#            print("Done")
+            elif command == b'/done':
+                process_state()
+    #            state.debug()
+                state.copy_from(new_state)
+    except:
+        continue
 
-
+    # Look if we need to emit a character.
+    ct = time.time()
+    if ct - start_time >= period:
+        print("t={} ({})".format(ct, ct-start_time))
+        generate_next()
+        start_time = ct
 
 server.shutdown()
 print("\nDone.")
