@@ -11,7 +11,7 @@ Authors: Sofian Audry & Monty Cantsin?
 
 * Deep Learning Programming: Sofian Audry
 * Texts: Monty Cantsin?
-* Hardware Design: Gregory Perrin
+* Hardware Design: Grégory Perrin
 * Research: Eliza Bennett
 * Technical Assistance: Matthew Loewen
 
