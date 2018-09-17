@@ -10,7 +10,7 @@ parser.add_argument("-N", "--n-words", type=int, default=1000, help="Number of w
 parser.add_argument("-T", "--temperature", type=float, default=1, help="Temperature argument [0, +inf] (for softmax sampling) (higher: more uniform, lower: more greedy")
 parser.add_argument("-b", "--n-best", type=int, default=0, help="Number of best choices from which to pick (to avoid too unlikely outcomes)")
 
-parser.add_argument("-r", "--frame-rate", type=float, default=1, help="Number of letters per second")
+parser.add_argument("-r", "--frame-rate", type=float, default=100, help="Number of letters per second")
 
 # OSC parameters
 parser.add_argument("-I", "--send-ip", default="127.0.0.1", help="The ip of the OSC server")
