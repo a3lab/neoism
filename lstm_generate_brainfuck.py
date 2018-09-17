@@ -658,6 +658,7 @@ state_uninitialized = True
 
 # Welcome message
 send_message(" * * * ", 3)
+send_message("       ")
 
 import random
 import copy
