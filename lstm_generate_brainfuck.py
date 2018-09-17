@@ -449,7 +449,7 @@ def generate_next(unused_addr=None):
 
 def update_color(value):
     global client
-    hue = lerp(value, 0, 1, 0.7, -0.3)
+    hue = lerp(value, 0, 1, 0.67, -0.336)
     if hue < 0:
         hue += 1
     print("HUE : {} {}".format(value, hue))
