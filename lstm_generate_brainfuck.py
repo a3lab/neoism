@@ -25,6 +25,7 @@ args = parser.parse_args()
 
 from pythonosc import osc_message_builder, udp_client, dispatcher, osc_server
 import threading
+import colorsys
 client = udp_client.SimpleUDPClient(args.send_ip, args.send_port)
 
 import serial
@@ -189,6 +190,25 @@ class State:
     def get_all_ports(self):
         return self.PORTS
 
+    def get_disconnected_ports(self):
+        disconnected = []
+        for port in self.PORTS:
+            conn = self.get_connections(port)
+            if not conn:
+                disconnected.append(port)
+        return disconnected
+
+    def get_misconnected_ports(self):
+        misconnected = []
+        for port in self.PORTS:
+            conn = self.get_connections(port)
+            if conn:
+                port_info = self.get_info(port)
+                info = self.get_info(conn[0])
+                if info["code"] != port_info["code"]:
+                    misconnected.append(port)
+        return misconnected
+
     def get_connections(self, portname):
         conn = []
         portId = self.get_port_id(portname)
@@ -213,32 +233,52 @@ class State:
             if c:
                 print("{} => {}".format(p, c))
 
-def process_group(weights, port_names, group, block_size, n_units, noise_level, lstm=False):
+def lerp(value, fromLow, fromHigh, toLow, toHigh):
+    # Avoid divisions by zero.
+    if fromLow == fromHigh:
+        return (toLow + toHigh) / 2.0 # dummy value
+    return (value - fromLow) * (toHigh - toLow) / (fromHigh - fromLow) + toLow
+
+def process_group(connection_info, weights, port_names, group, block_size, n_units, noise_level, lstm=False):
     global state
+
+#    print("processing group: {}".format(port_names))
+
     from_i = 0
     lstm_offset = 0
-    disconnection_count = 0
+
+    dis_connection_count = 0
+    mis_connection_count = 0
+    mis_connection_bypass = 0
     for port in port_names:
         connections = state.get_connections(port)
         if not connections:
-            disconnection_count += 1
-    connection_level = 1.0 - (disconnection_count / len(port_names))
+            dis_connection_count += 1
+        else:
+            port_info = state.get_info(port)
+            info = state.get_info(connections[0])
+            if info["code"] != port_info["code"]: # mis-connection: not the "right" port
+                mis_connection_count += 1
+                mis_connection_bypass += abs(info["level"] - port_info["level"])
+
+    connection_quality = 1.0 - ((mis_connection_count * 0.5 + dis_connection_count) / len(port_names))
+    mis_connection_level = mis_connection_count / len(port_names)
 
     for port in port_names:
         connections = state.get_connections(port)
-        port_info = state.get_info(port)
         arguments = [ weights, group, from_i, block_size, 0, n_units]
         if lstm:
             arguments += [lstm_offset]
 
         if not connections:
             print("Port {} disconnected".format(port))
-            arguments += [ connection_level ]
+            arguments += [ connection_quality ]
             if lstm:
                 weights_lstm_cut(*arguments)
             else:
                 weights_cut(*arguments)
         else:
+            port_info = state.get_info(port)
             info = state.get_info(connections[0])
             if info["code"] == port_info["code"]: # correct port
                 pass
@@ -248,12 +288,13 @@ def process_group(weights, port_names, group, block_size, n_units, noise_level, 
                 #     weights_restore(*arguments)
             else:
                 print("Port {} misconnected".format(port))
-                arguments += [ noise_level ]
+                arguments += [ mis_connection_level * noise_level ]
                 if lstm:
                     weights_lstm_noise(*arguments)
                 else:
                     weights_noise(*arguments)
 #                speed_adjust += port_info["level"] - info["level"]
+
         # Special case: for LSTM layers only update the from_i variable at the end of offset cycles
         if lstm:
             lstm_offset += 1
@@ -263,9 +304,14 @@ def process_group(weights, port_names, group, block_size, n_units, noise_level, 
         else:
             from_i += block_size
 
+    # Update connection info.
+    connection_info[0] += dis_connection_count
+    connection_info[1] += mis_connection_count
+    connection_info[2] += mis_connection_bypass
+
 import copy
 def process_state():
-    global model
+    global model, temperature, n_best
 
     # Reload old weights.
     weights = copy.deepcopy(saved_weights)
@@ -276,28 +322,66 @@ def process_state():
     n_hidden_layer_1 = 64
     n_hidden_layer_2 = 1024
 
-    speed_adjust = 0
-    temperature_adjust = 0
+    # Computes the toal : (disconnections, misconnections, bypasses)
+    connection_info = [0, 0, 0]
 
     # Output layer.
 #    print("Process output")
-    process_group(weights, [ "31!", "32!", "33!" ], 7, int(n_hidden_layer_2 / 3), n_characters, 0.2)
+    process_group(connection_info, weights, [ "31!", "32!", "33!" ], 7, int(n_hidden_layer_2 / 3), n_characters, 0.1)
 
     # LSTM layer #2
 #    print("Process layer 2")
-    process_group(weights, [ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ], 4, int(n_hidden_layer_1 / 2), n_hidden_layer_2, 0.2, True)
-    process_group(weights, [ "34!", "35!", "36!", "37!" ], 5, n_hidden_layer_2, n_hidden_layer_2, 0.2, True)
+    process_group(connection_info, weights, [ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ], 4, int(n_hidden_layer_1 / 2), n_hidden_layer_2, 0.1, True)
+    process_group(connection_info, weights, [ "34!", "35!", "36!", "37!" ], 5, n_hidden_layer_2, n_hidden_layer_2, 0.05, True)
 
     # LSTM layer #1
 #    print("Process layer 1")
-    process_group(weights, [ "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!" ], 1, int(n_embeddings / 2), n_hidden_layer_1, 0.2, True)
-    process_group(weights, [ "29!", "2A!", "2B!", "2C!" ], 2, n_hidden_layer_1, n_hidden_layer_1, 0.2, True)
+    process_group(connection_info, weights, [ "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!" ], 1, int(n_embeddings / 2), n_hidden_layer_1, 0.1, True)
+    process_group(connection_info, weights, [ "29!", "2A!", "2B!", "2C!" ], 2, n_hidden_layer_1, n_hidden_layer_1, 0.05, True)
 
     # Embeddings layer
 #    print("Process embeddings")
-    process_group(weights, [ "01!", "02!", "03!", "04!", "05!" ], 0, int(n_characters / 5), n_embeddings, 0.2)
+    process_group(connection_info, weights, [ "01!", "02!", "03!", "04!", "05!" ], 0, int(n_characters / 5), n_embeddings, 0.1)
 
+    # Implement changes.
     model.set_weights(weights)
+
+    n_possible_connections = 32
+    n_possible_bypass = (3*7 + 2*12 + 2*12 + 3*5)
+    dis_connection_level = connection_info[0] / n_possible_connections
+    mis_connection_level = connection_info[1] / n_possible_connections
+    mis_connection_bypass_level = connection_info[2] / n_possible_bypass
+
+    # More activity => higher temperatures
+    activity_level = - dis_connection_level + mis_connection_level
+    new_temperature = lerp(activity_level, -1, 1, 0.1, 1.1)
+
+    # More bypass = more speed.
+    # frame_rate      = lerp(mis_connection_bypass_level, 0, 1, 10, 1)
+    # set_frame_rate(frame_rate)
+
+    # Strange arrangement:
+    if mis_connection_bypass_level > 0:
+        n_best = int(lerp(mis_connection_bypass_level, 0, 1, n_characters/2, 1))
+    elif mis_connection_level > 0:
+        n_best = int(lerp(mis_connection_level, 0, 1, n_characters/2, n_characters))
+        if n_best >= n_characters:
+            n_best = 0
+    else:
+        n_best = int(n_characters / 2)
+
+    print("temp={} nb={} dis={}% mis={}% misb={}% act={} ({})"
+            .format(temperature, n_best, dis_connection_level*100, mis_connection_level*100, mis_connection_bypass_level*100,
+                    activity_level, connection_info))
+
+    # If temperature has changed: update text color.
+    if new_temperature != temperature:
+        temperature = new_temperature
+        update_color(lerp(activity_level, -1, 1, 0, 1))
+
+def set_frame_rate(fps):
+    global period
+    period = 1 / fps
 
 def generate_start(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern
@@ -354,18 +438,33 @@ def generate_next(unused_addr=None):
 
     result = int_to_char[index]
     seq_in = [int_to_char[value] for value in pattern]
-    if result == '\n':
-        result = " * * * "
     result = result.upper()
+    if result == '\n':
+        result = " *** "
     client.send_message("/neoism/text", result)
     pattern = numpy.append(pattern, index)
 #        pattern.append(index)
     pattern = pattern[1:len(pattern)]
 
+def update_color(value):
+    global client
+    hue = lerp(value, 0, 1, 0.7, -0.3)
+    if hue < 0:
+        hue += 1
+    print("HUE : {} {}".format(value, hue))
+    color = colorsys.hsv_to_rgb(hue, 1, 1)
+    r = int(color[0] * 255)
+    g = int(color[1] * 255)
+    b = int(color[2] * 255)
+    client.send_message("/neoism/color", [r, g, b])
+
 def set_sampling_mode(unused_addr, v):
     global sampling_mode
     print("Sampling mode: " + str(v))
     sampling_mode = v
+
+def test_misconnection_color(unused_addr, v):
+    update_color(v)
 
 def set_temperature(unused_addr, v):
     global temperature
@@ -468,6 +567,39 @@ def brain_restore(unused_addr, group, input, n_inputs, unit, n_units):
     weights_restore(weights, group, input, n_inputs, unit, n_units)
     model.set_weights(weights)
 
+# Procedure ran at switch off.
+def send_message(msg, wait=1):
+    global client
+    client.send_message("/neoism/text", msg) # clear screen
+    if wait:
+        time.sleep(wait)
+
+def switch_off():
+    global client, state
+    send_message("  ---  ")
+    dis_connected = state.get_disconnected_ports()
+    mis_connected = state.get_misconnected_ports()
+    if dis_connected:
+        send_message(" DISC: ", 2)
+        if len(dis_connected) >= 10:
+            send_message("TOOMANY")
+            send_message("       N. {}".format(len(dis_connected)))
+        else:
+            send_message("       ", 0.5) # clear screen
+            for p in dis_connected:
+                send_message(p + " ")
+    if mis_connected:
+        print(mis_connected)
+        send_message(" MISC: ", 2)
+        if len(mis_connected) >= 10:
+            send_message("TOOMANY")
+            send_message("       N. {}".format(len(mis_connected)))
+        else:
+            send_message("       ", 0.5) # clear screen
+            for p in mis_connected:
+                send_message(p + " ")
+    send_message("       ") # clear screen
+
 # def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
 #     global model
 #     print("Brain copy {} {} {} {}".format(input, n_inputs, unit, n_units, from_input, from_unit))
@@ -499,6 +631,7 @@ dispatcher.map("/neoism/brain_lstm_cut", brain_lstm_cut)
 dispatcher.map("/neoism/brain_lstm_noise", brain_lstm_noise)
 #dispatcher.map("/neoism/brain_copy", brain_copy)
 dispatcher.map("/neoism/brain_lstm_restore", brain_lstm_restore)
+dispatcher.map("/neoism/test_misconnection_color", test_misconnection_color)
 # dispatcher.map("/neoism/brain_cut/input", brain_cut_input)
 # dispatcher.map("/neoism/brain_cut/unit", brain_cut_unit)
 
@@ -509,50 +642,62 @@ server_thread.start()
 
 state = State()
 new_state = State()
-period = 1 / args.frame_rate
+
+period = None
+set_frame_rate(args.frame_rate)
 
 generate_start()
 start_time = time.time()
 
+# Used to block processing when Arduino sends a "/off" command.
 enable_processing = True
+
+# Records whether the program has just started
+state_uninitialized = True
+
+# Welcome message
+send_message(" * * * ", 3)
 
 import random
 import copy
 while True:
     if enable_arduino:
-    # Try to receive ASCIIMassage from Arduino
-    try:
-        line = ard.readline().rstrip().split()
-        if line:
-            command = line[0]
+        # Try to receive ASCIIMassage from Arduino
+        try:
+            line = ard.readline().rstrip().split()
+            if line:
+                command = line[0]
 
-            # Off command sent by the Arduino to pause the processing.
-            if command == b'/off':
-                if enable_processing:
-                    client.send_message("/neoism/text", "        ") # clear screen
-                    enable_processing = False
+                # Off command sent by the Arduino to pause the processing.
+                if command == b'/off':
+                    if enable_processing:
+                        if not state_uninitialized:
+                            switch_off()
+                        enable_processing = False
 
-            # Reset states.
-            elif command == b'/reset':
-                new_state.reset()
-                enable_processing = True
+                # Reset states.
+                elif command == b'/reset':
+                    new_state.reset()
+                    enable_processing = True
 
-            # Connected wires.
-            elif command == b'/conn':
-                try:
-                    from_pin = int(line[1])
-                    to_pin   = int(line[2])
-                    new_state.connect(from_pin, to_pin)
-                except:
-                    pass
+                # Connected wires.
+                elif command == b'/conn':
+                    try:
+                        from_pin = int(line[1])
+                        to_pin   = int(line[2])
+                        new_state.connect(from_pin, to_pin)
+                    except:
+                        pass
 
-            # State completed: update it.
-            elif command == b'/done':
-                process_state()
-    #            state.debug()
-                state.copy_from(new_state)
-    except:
-        continue
+                # State completed: update it.
+                elif command == b'/done':
+                    process_state()
+                    state_uninitialized = False
+        #            state.debug()
+                    state.copy_from(new_state)
+        except Exception as e:
+            print("Exception: {}".format(e))
+            pass
 
     if enable_processing:
         # Look if we need to emit a character.
