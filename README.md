@@ -13,7 +13,7 @@ Authors: Sofian Audry & Monty Cantsin?
 * Texts: Monty Cantsin?
 * Hardware Design: Gregory Perrin
 * Research: Eliza Bennett
-* Technical Assistance: Matthew Lowens
+* Technical Assistance: Matthew Loewen
 
 Technical Notes
 ---------------
