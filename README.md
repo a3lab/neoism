@@ -48,9 +48,16 @@ Add the following line to ```/etc/rc.local```:
 
 ### Ubuntu PC
 
-1. Set up auto-boot from the Ubuntu "User Accounts" for the user running the scripts.
-
-2. Add the following line to ```.profile```:
+1. Add the following line to ```/etc/rc.local``:
 ```
 bash path/to/neoism/neoism_startup_pc.sh > neoism_startup.log 2> neoism_startup.log &
 ```
+
+2. Edit ```/etc/default/grub``` to start in text mode (be sure to make a copy). Make the following modifications:
+
+```
+GRUB_CMDLINE_LINUX_DEFAULT="text"
+GRUB_CMDLINE_LINUX="3"
+GRUB_TERMINAL=console
+```
+(*) This is important because there seems to be a problem when running the machine in headless mode if GRUB is not set to start in text-only mode.
