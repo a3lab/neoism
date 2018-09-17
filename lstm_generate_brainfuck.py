@@ -357,8 +357,9 @@ def process_state():
     new_temperature = lerp(activity_level, -1, 1, 0.1, 1.1)
 
     # More bypass = more speed.
-    # frame_rate      = lerp(mis_connection_bypass_level, 0, 1, 10, 1)
-    # set_frame_rate(frame_rate)
+    speed_level = - dis_connection_level + mis_connection_bypass_level
+    frame_rate      = lerp(speed_level, -1, 1, 2.5, 20)
+    set_frame_rate(frame_rate)
 
     # Strange arrangement:
     if mis_connection_bypass_level > 0:
