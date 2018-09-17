@@ -17,6 +17,7 @@ parser.add_argument("-I", "--send-ip", default="127.0.0.1", help="The ip of the 
 parser.add_argument("-rP", "--receive-port", type=int, default=5005, help="The port the OSC server is listening on")
 parser.add_argument("-sP", "--send-port", type=int, default=5006, help="The port the OSC server is writing on")
 
+parser.add_argument("--no-arduino", action='store_true', default=False, help="Optional flag to run the script without checking the Arduino - for testing purposes")
 parser.add_argument("--arduino-serial-number", default=None, help="The serial number of the Arduino (to auto-find the serial port)")
 parser.add_argument("--baudrate", default=115200, help="The baudrate")
 
@@ -35,7 +36,10 @@ def find_arduino(serial_number):
             return serial.Serial(pinfo.device,args.baudrate,timeout=5)
     raise IOError("Could not find an arduino - is it plugged in?")
 
-ard = find_arduino(serial_number=args.arduino_serial_number)
+enable_arduino = not args.no_arduino
+
+if enable_arduino:
+    ard = find_arduino(serial_number=args.arduino_serial_number)
 
 import time
 import sys
@@ -515,6 +519,7 @@ enable_processing = True
 import random
 import copy
 while True:
+    if enable_arduino:
     # Try to receive ASCIIMassage from Arduino
     try:
         line = ard.readline().rstrip().split()
