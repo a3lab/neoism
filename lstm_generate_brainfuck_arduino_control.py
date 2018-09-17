@@ -138,7 +138,7 @@ def process_group(port_names, group, block_size, n_units, noise_level, lstm=Fals
                 from_i += block_size
 
 def process_state():
-    print("processsing state")
+#    print("processsing state")
     n_embeddings = 5
     n_characters = 56
     n_hidden_layer_1 = 64
@@ -148,21 +148,21 @@ def process_state():
     temperature_adjust = 0
 
     # Output layer.
-    print("Process output")
+#    print("Process output")
     process_group([ "31!", "32!", "33!" ], 7, int(n_hidden_layer_2 / 3), n_characters, 0.2)
 
     # LSTM layer #2
-    print("Process layer 2")
+#    print("Process layer 2")
     process_group([ "21!", "22!", "23!", "24!", "25!", "26!", "27!", "28!" ], 4, int(n_hidden_layer_1 / 2), n_hidden_layer_2, 0.2, True)
     process_group([ "34!", "35!", "36!", "37!" ], 5, n_hidden_layer_2, n_hidden_layer_2, 0.2, True)
 
     # LSTM layer #1
-    print("Process layer 1")
+#    print("Process layer 1")
     process_group([ "11!", "12!", "13!", "14!", "15!", "16!", "17!", "18!" ], 1, int(n_embeddings / 2), n_hidden_layer_1, 0.2, True)
     process_group([ "29!", "2A!", "2B!", "2C!" ], 2, n_hidden_layer_1, n_hidden_layer_1, 0.2, True)
 
     # Embeddings layer
-    print("Process embeddings")
+#    print("Process embeddings")
     process_group([ "01!", "02!", "03!", "04!", "05!" ], 0, int(n_characters / 5), n_embeddings, 0.2)
 
     # # Recurrent layer #2
@@ -195,19 +195,22 @@ new_state = State()
 import random
 import copy
 while True:
-    # Receive ASCIIMassage from Arduino
-    line = ard.readline().rstrip().split()
+    try:
+        # Receive ASCIIMassage from Arduino
+        line = ard.readline().rstrip().split()
+    except:
+        continue
     if line:
         command = line[0]
 
         if command == b'/reset':
-            print("Reset state")
+#            print("Reset state")
             new_state.reset()
 
         elif command == b'/conn':
             from_pin = int(line[1])
             to_pin   = int(line[2])
-            print("Connection: {} {}".format(from_pin, to_pin))
+#            print("Connection: {} {}".format(from_pin, to_pin))
             new_state.connect(from_pin, to_pin)
 
         elif command == b'/done':
@@ -215,7 +218,7 @@ while True:
             process_state()
             state.debug()
             state.copy_from(new_state)
-            print("Done")
+#            print("Done")
 
     #client.send_message("/neoism/temperature")
 
