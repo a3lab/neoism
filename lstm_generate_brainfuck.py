@@ -37,6 +37,26 @@ def find_arduino(serial_number):
             return serial.Serial(pinfo.device,args.baudrate,timeout=5)
     raise IOError("Could not find an arduino - is it plugged in?")
 
+def new_seed():
+    global dataX, char_to_int, int_to_char, seq_length
+
+    # pick a random seed
+    start = numpy.random.randint(0, len(dataX) - 1)
+
+    # move until you find a '.'
+    point = char_to_int['.']
+
+    while dataX[start][seq_length-1] != point:
+        start = (start + 1) % len(dataX)
+
+    # Somehow we need to make sure to add one extra space, otherwise the LSTM somehow fails to generate a space after a dot.
+    start = (start + 1) % len(dataX)
+    seed = dataX[start]
+
+    print("New seed:")
+    print(("\"", ''.join([int_to_char[value] for value in seed]), "\""))
+    return seed
+
 enable_arduino = not args.no_arduino
 
 if enable_arduino:
@@ -123,13 +143,7 @@ else:
 # model.load_weights(args.model_file)
 # model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-# pick a random seed
-start = numpy.random.randint(0, len(dataX)-1)
-seed = dataX[start]
-pattern = seed
-
-print("Seed:")
-print(("\"", ''.join([int_to_char[value] for value in pattern]), "\""))
+pattern = new_seed()
 
 temperature = args.temperature
 sampling_mode = args.sampling_mode
@@ -388,7 +402,7 @@ def generate_start(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern
     print(args)
     model.reset_states()
-    pattern = seed
+    pattern = new_seed()
 
 def generate_next(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern, n_vocab, int_to_char, graph
