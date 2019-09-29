@@ -635,6 +635,48 @@ def switch_off():
                 send_message(p + " ")
     send_message("       ") # clear screen
 
+# Read state from Arduino. Returns a new state object, or False if currently "OFF".
+def read_arduino_state():
+    global state_uninitialized, enable_processing
+
+    while True:
+        # Try to receive ASCIIMassage from Arduino
+        try:
+            line = ard.readline().rstrip().split()
+            if line:
+                command = line[0]
+
+                # Off command sent by the Arduino to pause the processing.
+                if command == b'/off':
+                    if enable_processing:
+                        if not state_uninitialized:
+                            switch_off()
+                        enable_processing = False
+                        return False
+
+                # Reset states.
+                elif command == b'/reset':
+                    new_state.reset()
+                    enable_processing = True
+
+                # Connected wires.
+                elif command == b'/conn':
+                    try:
+                        from_pin = int(line[1])
+                        to_pin   = int(line[2])
+                        new_state.connect(from_pin, to_pin)
+                    except:
+                        pass
+
+                # State completed: update it.
+                elif command == b'/done':
+                    state_uninitialized = False
+                    return new_state
+
+        except Exception as e:
+            print("Exception: {}".format(e))
+            return False
+
 # def brain_copy(unused_addr, input, n_inputs, unit, n_units, from_input, from_unit):
 #     global model
 #     print("Brain copy {} {} {} {}".format(input, n_inputs, unit, n_units, from_input, from_unit))
@@ -698,42 +740,10 @@ import random
 import copy
 while True:
     if enable_arduino:
-        # Try to receive ASCIIMassage from Arduino
-        try:
-            line = ard.readline().rstrip().split()
-            if line:
-                command = line[0]
-
-                # Off command sent by the Arduino to pause the processing.
-                if command == b'/off':
-                    if enable_processing:
-                        if not state_uninitialized:
-                            switch_off()
-                        enable_processing = False
-
-                # Reset states.
-                elif command == b'/reset':
-                    new_state.reset()
-                    enable_processing = True
-
-                # Connected wires.
-                elif command == b'/conn':
-                    try:
-                        from_pin = int(line[1])
-                        to_pin   = int(line[2])
-                        new_state.connect(from_pin, to_pin)
-                    except:
-                        pass
-
-                # State completed: update it.
-                elif command == b'/done':
-                    process_state()
-                    state_uninitialized = False
-        #            state.debug()
-                    state.copy_from(new_state)
-        except Exception as e:
-            print("Exception: {}".format(e))
-            pass
+        new_state = read_arduino_state()
+        if new_state:
+            state.copy_from(new_state)
+            process_state()
 
     if enable_processing:
         # Look if we need to emit a character.
