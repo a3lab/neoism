@@ -454,8 +454,19 @@ def generate_next(unused_addr=None):
     result = int_to_char[index]
     seq_in = [int_to_char[value] for value in pattern]
     result = result.upper()
+
+    # Check for chars that may trigger a restart of the LSTM with a new seed. This improves diversity.
     if result == '\n':
-        result = " *** "
+        restart_probability = 0.5
+        result = ' '
+    elif result == '.':
+        restart_probability = 0.5
+    elif result == '!':
+        restart_probability = 0.2
+    else:
+        restart_probability = 0.0
+    if random.random() <= restart_probability:
+        generate_start()
     client.send_message("/neoism/text", result)
     pattern = numpy.append(pattern, index)
 #        pattern.append(index)
