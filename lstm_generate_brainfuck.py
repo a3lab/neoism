@@ -398,6 +398,15 @@ def set_frame_rate(fps):
     global period
     period = 1 / fps
 
+def sanitize(text):
+    text = text.replace(u"“", "\"")
+    text = text.replace(u"”", "\"")
+    text = text.replace("`", "'")
+    text = text.replace(u"‘", "'")
+    text = text.replace(u"’", "'")
+
+    return text
+
 def generate_start(unused_addr=None):
     global has_embeddings, n_best, sampling_mode, model, pattern
     print(args)
@@ -451,8 +460,9 @@ def generate_next(unused_addr=None):
             max_indices_weights = [ prediction[m]/max_indices_sum for m in max_indices ]
             index = numpy.asscalar(numpy.random.choice(numpy.array(max_indices), 1, p=numpy.array(max_indices_weights)))
 
+    # Process result.
     result = int_to_char[index]
-    result = result.upper()
+    result = sanitize(result.upper())
 
     # Check for chars that may trigger a restart of the LSTM with a new seed. This improves diversity.
     if result == '\n':
