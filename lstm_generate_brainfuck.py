@@ -452,7 +452,6 @@ def generate_next(unused_addr=None):
             index = numpy.asscalar(numpy.random.choice(numpy.array(max_indices), 1, p=numpy.array(max_indices_weights)))
 
     result = int_to_char[index]
-    seq_in = [int_to_char[value] for value in pattern]
     result = result.upper()
 
     # Check for chars that may trigger a restart of the LSTM with a new seed. This improves diversity.
@@ -467,9 +466,9 @@ def generate_next(unused_addr=None):
         restart_probability = 0.0
     if random.random() <= restart_probability:
         generate_start()
+
     client.send_message("/neoism/text", result)
     pattern = numpy.append(pattern, index)
-#        pattern.append(index)
     pattern = pattern[1:len(pattern)]
 
 def update_color(value):
