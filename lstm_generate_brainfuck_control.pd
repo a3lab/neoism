@@ -1,11 +1,11 @@
-#N canvas 794 49 742 792 10;
-#X obj 156 30 bng 30 250 50 0 empty empty Restart 17 7 0 10 -262144
+#N canvas 715 51 743 813 10;
+#X obj 156 102 bng 30 250 50 0 empty empty Restart 17 7 0 10 -262144
 -1 -1;
-#X obj 250 254 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
+#X obj 250 326 bng 15 250 50 0 empty empty empty 17 7 0 10 -262144
 -1 -1;
-#X floatatom 552 176 7 1e-05 100 0 - - -, f 7;
-#X floatatom 774 176 7 1 50 0 - - -, f 7;
-#X obj 250 30 tgl 30 0 empty empty Run 17 7 0 10 -262144 -1 -1 1 1
+#X floatatom 552 248 7 1e-05 100 0 - - -, f 7;
+#X floatatom 774 248 7 1 50 0 - - -, f 7;
+#X obj 250 102 tgl 30 0 empty empty Run 17 7 0 10 -262144 -1 -1 0 1
 ;
 #X msg 94 665 disconnect;
 #X obj 60 710 netsend -u -b;
@@ -34,7 +34,13 @@
 #X floatatom 300 186 5 0 0 0 - - -, f 5;
 #X obj 60 30 tgl 30 0 empty empty OSC\ Connect 17 7 0 10 -262144 -1
 -1 0 1;
-#X obj 60 604 select 1;
+#X obj 60 676 select 1;
+#X obj 58 26 bng 30 250 50 0 empty empty Reset 17 7 0 10 -262144 -1
+-1;
+#X msg 300 66 1000;
+#X msg 390 66 1;
+#X msg 548 66 1;
+#X msg 774 66 0;
 #X connect 0 0 10 0;
 #X connect 1 0 11 0;
 #X connect 2 0 12 0;
@@ -62,3 +68,12 @@
 #X connect 26 0 27 0;
 #X connect 27 0 21 0;
 #X connect 27 1 5 0;
+#X connect 28 0 29 0;
+#X connect 28 0 30 0;
+#X connect 28 0 31 0;
+#X connect 28 0 32 0;
+#X connect 29 0 24 0;
+#X connect 30 0 17 0;
+#X connect 31 0 22 0;
+#X connect 32 0 23 0;
+#X coords 0 0 1 1 85 60 0;

@@ -28,10 +28,10 @@ import threading
 import colorsys
 client = udp_client.SimpleUDPClient(args.send_ip, args.send_port)
 
-import serial
-import serial.tools.list_ports
 
 def find_arduino(serial_number):
+    import serial
+    import serial.tools.list_ports
     for pinfo in serial.tools.list_ports.comports():
         if pinfo.serial_number == serial_number:
             return serial.Serial(pinfo.device,args.baudrate,timeout=5)

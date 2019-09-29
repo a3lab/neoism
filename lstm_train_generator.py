@@ -22,6 +22,7 @@ parser.add_argument("-p", "--batch-save-period", type=int, default=0, help="Peri
 parser.add_argument("-fp", "--first-epoch-params", type=str, default=None, help="A formatted string describing the evolution of batch size and save period during the first epoch")
 
 parser.add_argument("-w", "--use-words", action='store_true', default=False, help="Train at word-level instead of character-level")
+parser.add_argument("-rwf", "--rare-words-frequency", type=int, default=0, help="If word frequency is <= than this they are replaced by <UNK>")
 parser.add_argument("-sw", "--save-weights-only", action='store_true', default=False, help="If activated the models will only save the weights")
 
 args = parser.parse_args()
@@ -81,6 +82,19 @@ raw_text = raw_text.lower()
 if use_words:
 	import nltk
 	raw_text = nltk.word_tokenize(raw_text)
+
+	# Replace numbers with <NUM> token.
+	raw_text = [word if not word.isnumeric() else "<NUM>" for word in raw_text]
+
+	# Replace rare words with <UNK> token.
+	freq_words = dict(nltk.FreqDist(raw_text))
+	rare_words_frequency = args.rare_words_frequency
+	vocab = []
+	if rare_words_frequency > 0:
+		for word, freq in freq_words.items():
+			if freq > rare_words_frequency:
+				vocab.append(word)
+		raw_text = [w if w in vocab else "<UNK>" for w in raw_text]
 
 # create mapping of unique chars to integers
 chars = sorted(list(set(raw_text)))

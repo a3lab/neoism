@@ -17,11 +17,14 @@ parser.add_argument("-t", "--transition-factor", type=float, default=0, help="Po
 parser.add_argument("-p", "--seed", type=str, default=None, help="The seed used to generate the text (default will use end of training text)")
 
 parser.add_argument("-ne", "--no-embeddings", action='store_true', default=False, help="Use no embeddings")
+parser.add_argument("-w", "--use-words", action='store_true', default=False, help="Train at word-level instead of character-level")
+parser.add_argument("-rwf", "--rare-words-frequency", type=int, default=0, help="If word frequency is <= than this they are replaced by <UNK>")
 
 args = parser.parse_args()
 
 import sys
 import numpy
+import io
 import os.path
 from keras.models import Sequential, load_model
 from keras.layers import Dense
@@ -31,9 +34,30 @@ from keras.layers import LSTM
 from keras.callbacks import ModelCheckpoint
 from keras.utils import np_utils
 
-# load ascii text and covert to lowercase
-raw_text = open(args.text_file).read()
+use_words = args.use_words
+
+# load text and covert to lowercase
+with io.open(args.text_file, "r", encoding="utf-8") as f:
+	raw_text = f.read()
 raw_text = raw_text.lower()
+
+if use_words:
+	import nltk
+	raw_text = nltk.word_tokenize(raw_text)
+
+	# Replace numbers with <NUM> token.
+	raw_text = [word if not word.isnumeric() else "<NUM>" for word in raw_text]
+
+	# Replace rare words with <UNK> token.
+	freq_words = dict(nltk.FreqDist(raw_text))
+	rare_words_frequency = args.rare_words_frequency
+	vocab = []
+	if rare_words_frequency > 0:
+		for word, freq in freq_words.items():
+			if freq > rare_words_frequency:
+				vocab.append(word)
+		raw_text = [w if w in vocab else "<UNK>" for w in raw_text]
+		print(raw_text)
 
 n_epochs = args.n_epochs
 
@@ -175,7 +199,10 @@ for e in range(n_epochs):
 
 		result = int_to_char[index]
 		seq_in = [int_to_char[value] for value in pattern]
+		if use_words:
+			result += " "
 		output_file.write(result)
+
 		pattern = numpy.append(pattern, index)
 #		pattern.append(index)
 		pattern = pattern[1:len(pattern)]
