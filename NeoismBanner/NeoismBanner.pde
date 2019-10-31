@@ -6,28 +6,33 @@ RandomTimedEventGenerator nextCharacterGen;
 
 final int TEXT_FONT_SIZE = 128;
 
-final String TEXT_FILE = "/home/tats/Documents/workspace/readings_neoism/data/neoism_tiny.txt";
+//final String TEXT_FILE = "banner.txt";
+final String TEXT_FILE = "test.txt";
 
 // An array of news headlines
 String fullText = "";
 
-String loadedText;
+String[] loadedLines;
 
 PFont f; // Global font variable
 float x; // Horizontal location
 int currentChar = 0;
+int currentLine = 0;
+int finishedFrame;
+int waitStartTime = 0;
 
 void setup() {
-  fullScreen(P2D);
+//  fullScreen(P2D);
   noCursor();
-//  size(1080, 320);
+  size(1080, 320);
   f = createFont("Arial", TEXT_FONT_SIZE);
   
-  loadedText = loadString(TEXT_FILE).toUpperCase();
-  fullText = loadedText.substring(0, 3000);
+  loadedLines = loadStrings(TEXT_FILE);
 
   // Initialize headline offscreen
   x = width;
+  
+  initText();
   
   //nextCharacterGen = new RandomTimedEventGenerator(this, "generateNextChar");
   //nextCharacterGen.setMinIntervalMs(50);
@@ -35,25 +40,59 @@ void setup() {
 }
 
 void draw() {
-  background(255, 0, 0);
+  background(0);
   fill(255);
 
   // Display headline at x location
   textFont(f, TEXT_FONT_SIZE);
   textAlign(LEFT, CENTER);
 
-  // A specific String from the array is displayed according to the value of the "index" variable.
-  text(fullText, x, 275);
-  
-  fill(0);
-  final int BOTTOM_BANNER = 433;
-  rect(0, BOTTOM_BANNER, width, height-BOTTOM_BANNER);
-  
-  //fill(255);
-  //text(mouseY, 600, 700);
+  fill(255, 0, 0);
+  rect(0, 0, width, 240);
 
-  x -= 10;
-  // Decrement x
+  // A specific String from the array is displayed according to the value of the "index" variable.
+  if (millis() - waitStartTime > 5000) {
+    
+    fill(255);
+    text(fullText, x, 110);
+      
+    //fill(255);
+    //text(mouseY, 600, 700);
+    
+    x -= 10;
+  
+    // Decrement x
+    updateText();
+  }
+}
+
+boolean textFinished() {
+  if (x > 0)
+    return false;
+  loadPixels();
+  for (int i=0; i<pixels.length; i++)
+    if (pixels[i] == color(255)) // character
+      return false;
+  updatePixels();
+  return true;
+}
+
+void initText() {
+  fullText = loadedLines[currentLine].toUpperCase();
+  x = width;
+  finishedFrame = frameCount;
+  waitStartTime = millis();
+}
+
+void updateText() {
+  if (textFinished()) {
+    println("text finished : " + frameCount);
+    finishedFrame = frameCount;
+    currentLine = (currentLine + 1) % loadedLines.length;
+    fullText = loadedLines[currentLine].toUpperCase();
+    x = width;
+    waitStartTime = millis();
+  }
 }
 
 String loadString(String uri) {
@@ -63,15 +102,4 @@ String loadString(String uri) {
     str += s;
   }
   return str;
-}
-
-void generateNextChar() {
-  receiveText(loadedText.substring(currentChar, currentChar+1));
-  currentChar = (currentChar + 1) % loadedText.length();
-}
-
-void receiveText(String txt) {
-  fullText += txt;
-  println(fullText);
-//  x -= textWidth(txt);
 }
