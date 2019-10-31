@@ -61,3 +61,8 @@ GRUB_CMDLINE_LINUX="3"
 GRUB_TERMINAL=console
 ```
 (*) This is important because there seems to be a problem when running the machine in headless mode if GRUB is not set to start in text-only mode.
+
+### Video banner Raspberry Pi
+
+Disable display of yellow electric bolt: add ```disable_warnings=1``` to ```/boot/config.txt```
+
