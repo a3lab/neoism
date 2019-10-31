@@ -66,3 +66,9 @@ GRUB_TERMINAL=console
 
 Disable display of yellow electric bolt: add ```disable_warnings=1``` to ```/boot/config.txt```
 
+#### Startup
+
+Add the following line to ```/etc/xdg/lxsession/LXDE-pi/autostart```:
+
+```/bin/bash /home/pi/neoism/neoism_startup_banner_pi.sh```
+
