@@ -1,18 +1,20 @@
-// Example 17-3: Scrolling headlines 
-
-import org.multiply.processing.RandomTimedEventGenerator;
-
-RandomTimedEventGenerator nextCharacterGen;
+// Scrolling Neoist Banner
 
 final int TEXT_FONT_SIZE = 128;
 
-//final String TEXT_FILE = "banner.txt";
-final String TEXT_FILE = "test.txt";
+final String TEXT_FILE = "banner.txt";
+//final String TEXT_FILE = "test.txt";
+
+final int BANNER_HEIGHT = 240;
+final int BANNER_TEXT_HEIGHT = BANNER_HEIGHT/2;
+
+final int INTERVAL_BETWEEN_LINES = 15000;
 
 // An array of news headlines
 String fullText = "";
 
 String[] loadedLines;
+float[] loadedLinesWidth;
 
 PFont f; // Global font variable
 float x; // Horizontal location
@@ -22,44 +24,44 @@ int finishedFrame;
 int waitStartTime = 0;
 
 void setup() {
-//  fullScreen(P2D);
+  fullScreen(P2D);
   noCursor();
-  size(1080, 320);
-  f = createFont("Arial", TEXT_FONT_SIZE);
+//  f = createFont("Arial", TEXT_FONT_SIZE);
+  f = createFont("Lucida", TEXT_FONT_SIZE);
   
   loadedLines = loadStrings(TEXT_FILE);
+  loadedLinesWidth = new float[loadedLines.length];
 
+  // Display headline at x location
+  textFont(f, TEXT_FONT_SIZE);
+  textAlign(LEFT, CENTER);
+
+  for (int i=0; i<loadedLines.length; i++)
+    loadedLinesWidth[i] = textWidth(loadedLines[i]);
+    
   // Initialize headline offscreen
   x = width;
   
   initText();
-  
-  //nextCharacterGen = new RandomTimedEventGenerator(this, "generateNextChar");
-  //nextCharacterGen.setMinIntervalMs(50);
-  //nextCharacterGen.setMaxIntervalMs(100);
 }
 
 void draw() {
   background(0);
   fill(255);
 
-  // Display headline at x location
-  textFont(f, TEXT_FONT_SIZE);
-  textAlign(LEFT, CENTER);
-
   fill(255, 0, 0);
-  rect(0, 0, width, 240);
+  rect(0, 0, width, BANNER_HEIGHT);
 
   // A specific String from the array is displayed according to the value of the "index" variable.
-  if (millis() - waitStartTime > 5000) {
+  if (millis() - waitStartTime > INTERVAL_BETWEEN_LINES) {
     
     fill(255);
-    text(fullText, x, 110);
+    text(fullText, x, BANNER_TEXT_HEIGHT);
       
     //fill(255);
     //text(mouseY, 600, 700);
     
-    x -= 10;
+    x -= 15;
   
     // Decrement x
     updateText();
@@ -67,21 +69,22 @@ void draw() {
 }
 
 boolean textFinished() {
-  if (x > 0)
-    return false;
-  loadPixels();
-  for (int i=0; i<pixels.length; i++)
-    if (pixels[i] == color(255)) // character
-      return false;
-  updatePixels();
-  return true;
+  return (loadedLinesWidth[currentLine] + x < 0);
+  //if (x > 0)
+  //  return false;
+  //loadPixels();
+  //for (int i=0; i<BANNER_HEIGHT*width; i++)
+  //  if (pixels[i] == color(255)) // character
+  //    return false;
+  //updatePixels();
+  //return true;
 }
 
 void initText() {
   fullText = loadedLines[currentLine].toUpperCase();
   x = width;
   finishedFrame = frameCount;
-  waitStartTime = millis();
+  waitStartTime = millis() - INTERVAL_BETWEEN_LINES;
 }
 
 void updateText() {
