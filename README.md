@@ -68,3 +68,14 @@ GRUB_TERMINAL=console
 If the ```rc.local``` does not work, also run ```sudo crontab -e``` and add the following line to the file:
 
 ```@reboot /path/to/neoism/neoism_startup_crontab.sh```
+
+### Video banner Raspberry Pi
+
+Disable display of yellow electric bolt: add ```disable_warnings=1``` to ```/boot/config.txt```
+
+#### Startup
+
+Add the following line to ```/etc/xdg/lxsession/LXDE-pi/autostart```:
+
+```/bin/bash /home/pi/neoism/neoism_startup_banner_pi.sh```
+
