@@ -169,13 +169,21 @@ class State:
         "01?", "02?", "03?", "04?", "05?"
     ]
     connections = None
+    active = True
 
     def __init__(self):
         # Create array of arrays.
         self.connections = [ [ False for j in range(self.N_PINS) ] for i in range(self.N_PINS) ]
+        self.setActive(True)
 
     def copy_from(self, other):
         self.connections = other.connections
+
+    def setActive(self, active):
+        self.active = active
+
+    def isActive(self):
+        return self.active
 
     def reset(self):
         for i in range(self.N_PINS):
@@ -652,10 +660,12 @@ def read_arduino_state():
                         if not state_uninitialized:
                             switch_off()
                         enable_processing = False
-                        return False
+                        new_state.setActive(False)
+                        return new_state
 
                 # Reset states.
                 elif command == b'/reset':
+                    new_state.setActive(True)
                     new_state.reset()
                     enable_processing = True
 
@@ -692,6 +702,12 @@ def read_arduino_state():
 #     weights[0][i_f:i_t,u_f:u_t] = saved_weights[0][i_f2:i_t2,u_f2:u_t2]
 #     weights = model.layers[1].set_weights(weights)
 #
+
+#for i in range(n_vocab):
+#    s = sanitize(chars[i])
+#    print("Sending {} => ".format(chars[i]), s)
+#    client.send_message("/neoism/text", s)
+#    time.sleep(1)
 
 dispatcher = dispatcher.Dispatcher()
 dispatcher.map("/neoism/start", generate_start)
@@ -741,7 +757,8 @@ import copy
 while True:
     if enable_arduino:
         new_state = read_arduino_state()
-        if new_state:
+        print("New state: {}".format(new_state))
+        if new_state.isActive():
             state.copy_from(new_state)
             process_state()
 
