@@ -79,3 +79,9 @@ Add the following line to ```/etc/xdg/lxsession/LXDE-pi/autostart```:
 
 ```/bin/bash /home/pi/neoism/neoism_startup_banner_pi.sh```
 
+### Useful Info
+
+| PC IP  | 192.168.1.100  |
+| RPi IP  | 192.168.1.110  |
+| RPi OSC Port  | 7770  |
+| Arduino serial no | 7573530323135161F1D2 |
