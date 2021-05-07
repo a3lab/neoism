@@ -61,3 +61,10 @@ GRUB_CMDLINE_LINUX="3"
 GRUB_TERMINAL=console
 ```
 (*) This is important because there seems to be a problem when running the machine in headless mode if GRUB is not set to start in text-only mode.
+
+3. IMPORTANT: Run ```sudo update-grub``` to apply changes.
+
+
+If the ```rc.local``` does not work, also run ```sudo crontab -e``` and add the following line to the file:
+
+```@reboot /path/to/neoism/neoism_startup_crontab.sh```
